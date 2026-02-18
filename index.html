@@ -578,11 +578,13 @@
   <div class="legend-item"><div class="legend-dot" style="background:var(--r3)"></div> R3 Multi-Family</div>
   <div class="legend-item"><div class="legend-dot" style="background:var(--r4)"></div> R4 High Density</div>
   <div class="legend-item"><div class="legend-dot" style="background:var(--land)"></div> Vacant Land</div>
-  <div class="legend-section" style="margin-top:8px">Listings (Deal Score)</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#22c55e;border-radius:50%"></div> 70+ A-Grade Deal</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#4ade80;border-radius:50%"></div> 50-69 B-Grade</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#facc15;border-radius:50%"></div> 30-49 C-Grade</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#f97316;border-radius:50%"></div> &lt;30 D-Grade</div>
+  <div class="legend-section" style="margin-top:8px">Listings (Exit $/SF)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#2563eb;border-radius:50%"></div> &lt;$300/SF</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;border-radius:50%"></div> $300-450</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#22c55e;border-radius:50%"></div> $450-600</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#eab308;border-radius:50%"></div> $600-750</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f97316;border-radius:50%"></div> $750-900</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ef4444;border-radius:50%"></div> $900+</div>
 </div>
 </div><!-- /app-row -->
 
@@ -1024,7 +1026,8 @@ function rebuildListings(){
 
   filtered.forEach(l => {
     const sc = l.dealScore || 0;
-    const color = scoreColor(sc);
+    const exitPpsf = l.newconPpsf || l.hoodPpsf;
+    const color = hoodPpsfColor(exitPpsf);
     const radius = sc >= 70 ? 8 : sc >= 50 ? 7 : sc >= 30 ? 6 : 5;
     const cm = L.circleMarker([l.lat,l.lng],{
       radius, color, fillColor:color,
