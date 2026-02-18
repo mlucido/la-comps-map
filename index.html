@@ -302,12 +302,157 @@
   .popup-fav-btn:hover{border-color:#facc15}
   .popup-fav-btn.active{border-color:#facc15;background:rgba(250,204,21,0.1);color:#facc15}
   .comp-psf-label{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:#e2e8f0;text-shadow:0 0 3px rgba(0,0,0,0.9),0 0 6px rgba(0,0,0,0.7);white-space:nowrap;text-align:center;pointer-events:none}
+
+  /* ── Mobile: Bottom Sheet + Cards ── */
+  @media (max-width: 768px) {
+    body { height: 100vh; height: 100dvh; }
+    .app-row { position: relative; }
+    #map { width: 100% !important; }
+
+    /* Sidebar → Bottom sheet */
+    .sidebar {
+      position: fixed !important; bottom: 0; left: 0; right: 0;
+      width: 100% !important; min-width: 0 !important;
+      height: 56px; max-height: 85vh;
+      border-right: none !important; border-top: 1px solid var(--border);
+      border-radius: 16px 16px 0 0;
+      z-index: 1100; transition: height 0.3s ease;
+      overflow: hidden;
+    }
+    .sidebar.sheet-half { height: 40vh; overflow-y: auto; }
+    .sidebar.sheet-full { height: 85vh; overflow-y: auto; }
+
+    /* Sheet handle */
+    .sheet-handle {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 10px 16px 6px; cursor: grab;
+      position: sticky; top: 0; z-index: 10; background: var(--surface);
+      border-radius: 16px 16px 0 0;
+    }
+    .sheet-handle .handle-bar {
+      width: 40px; height: 4px; background: var(--text-dim); border-radius: 2px;
+      margin-bottom: 8px; opacity: 0.5;
+    }
+    .sheet-handle .peek-stats {
+      display: flex; gap: 16px; font-size: 13px; font-weight: 500;
+      width: 100%; justify-content: center;
+    }
+    .sheet-handle .peek-stats .peek-value {
+      font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--green);
+    }
+
+    /* Floating filter button */
+    .mobile-filter-btn {
+      display: flex !important; position: fixed; top: 12px; left: 12px; z-index: 1050;
+      padding: 10px 16px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text); font-family: inherit; font-size: 13px;
+      font-weight: 600; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      align-items: center; gap: 8px;
+    }
+
+    .sidebar-header .refresh-btn { display: none; }
+
+    /* Stats grid: 2 columns */
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+
+    /* Pro forma: 1 column */
+    .proforma-inputs { grid-template-columns: 1fr; }
+
+    /* Range slider: bigger touch targets */
+    .range-slider-track input[type="range"]::-webkit-slider-thumb {
+      width: 24px; height: 24px;
+    }
+    .range-slider-track input[type="range"] { height: 24px; top: -12px; }
+
+    /* Buttons: min 44px touch target */
+    .mode-toggle, .layer-btn, .panel-toggle, .fav-toggle,
+    .reset-btn, .export-btn { min-height: 44px; }
+    .preset-btn, .basemap-btn { min-height: 40px; }
+
+    /* Legend: hide on mobile */
+    .map-legend { display: none; }
+
+    /* Popup: mobile-friendly */
+    .leaflet-popup-content { min-width: unset !important; }
+    .leaflet-popup-content-wrapper {
+      max-height: 50vh; overflow-y: auto !important;
+      max-width: calc(100vw - 40px) !important;
+    }
+
+    /* Listings panel: full-screen overlay */
+    .listings-panel {
+      position: fixed !important; top: 0; left: 0; right: 0; bottom: 0;
+      height: 0; min-height: 0; z-index: 1200; border-top: none;
+    }
+    .listings-panel.open { height: 100% !important; min-height: 100% !important; }
+    .listings-panel-resize { display: none; }
+    .listings-panel-close {
+      font-size: 24px; min-width: 44px; min-height: 44px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* Hide desktop table, show mobile cards */
+    .listings-table-wrap { display: none; }
+    .mobile-cards {
+      display: block; padding: 10px 12px; overflow-y: auto;
+      height: calc(100% - 45px); -webkit-overflow-scrolling: touch;
+    }
+
+    /* Mobile card styling */
+    .mobile-card {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px 14px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s;
+    }
+    .mobile-card:active { border-color: var(--accent); }
+    .mobile-card .card-addr {
+      font-weight: 600; font-size: 13px; margin-bottom: 8px; line-height: 1.3;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .mobile-card .card-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 12px;
+    }
+    .mobile-card .card-row {
+      display: flex; justify-content: space-between; gap: 6px;
+    }
+    .mobile-card .card-label { color: var(--text-dim); font-size: 11px; }
+    .mobile-card .card-value {
+      font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 12px;
+    }
+    .mobile-card .card-margin-row {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border);
+    }
+    .mobile-card .card-margin {
+      font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700;
+    }
+    .mobile-card .card-profit {
+      font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600;
+    }
+
+    /* Font scaling */
+    .section-title { font-size: 11px; }
+    .stat-card .stat-value { font-size: 18px; }
+  }
+
+  /* Desktop: hide mobile-only elements */
+  @media (min-width: 769px) {
+    .sheet-handle { display: none; }
+    .mobile-filter-btn { display: none !important; }
+    .mobile-cards { display: none !important; }
+  }
 </style>
 </head>
 <body class="light-mode">
 
 <div class="app-row">
 <aside class="sidebar">
+  <div class="sheet-handle" id="sheetHandle">
+    <div class="handle-bar"></div>
+    <div class="peek-stats">
+      <div class="peek-stat"><span class="peek-value" id="peekEligible">0</span> eligible</div>
+      <div class="peek-stat"><span class="peek-value" id="peekMargin">0%</span> avg margin</div>
+    </div>
+  </div>
   <div class="sidebar-header">
     <div style="display:flex;align-items:center;justify-content:space-between">
       <h1><span>SB 1123</span> Deal Finder</h1>
@@ -540,6 +685,10 @@
   </div>
 </aside>
 
+<button class="mobile-filter-btn" id="mobileFilterBtn" onclick="openMobileSheet()">
+  <span class="filter-icon">&#9776;</span> Filters
+</button>
+
 <div id="map"></div>
 
 <div class="map-legend">
@@ -590,6 +739,7 @@
       <tbody id="listingsTableBody"></tbody>
     </table>
   </div>
+  <div class="mobile-cards" id="mobileCards"></div>
 </div>
 
 <script>
@@ -1146,6 +1296,7 @@ function toggleListingsPanel(){
   const panel = document.getElementById('listingsPanel');
   listingsPanelOpen = !listingsPanelOpen;
   panel.classList.toggle('open', listingsPanelOpen);
+  if(isMobile() && listingsPanelOpen) setSheetState('collapsed');
   setTimeout(() => map.invalidateSize(), 350);
 }
 
@@ -1160,13 +1311,28 @@ function toggleListingsPanel(){
     document.addEventListener('mouseup', onUp);
     e.preventDefault();
   });
+  handle.addEventListener('touchstart', function(e){
+    startY = e.touches[0].clientY; startH = panel.offsetHeight;
+    document.addEventListener('touchmove', onTouchMove, {passive:false});
+    document.addEventListener('touchend', onTouchUp);
+  }, {passive:true});
   function onMove(e){
     const diff = startY - e.clientY;
     panel.style.height = Math.max(150, Math.min(window.innerHeight*0.7, startH+diff))+'px';
   }
+  function onTouchMove(e){
+    const diff = startY - e.touches[0].clientY;
+    panel.style.height = Math.max(150, Math.min(window.innerHeight*0.7, startH+diff))+'px';
+    e.preventDefault();
+  }
   function onUp(){
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
+    map.invalidateSize();
+  }
+  function onTouchUp(){
+    document.removeEventListener('touchmove', onTouchMove);
+    document.removeEventListener('touchend', onTouchUp);
     map.invalidateSize();
   }
 })();
@@ -1231,6 +1397,7 @@ function updateStats(){
   // Comp stats
   const compFiltered = getFilteredComps();
   document.getElementById('compCount').textContent = compFiltered.length.toLocaleString();
+  updatePeekStats();
 }
 
 function updateFilterCount(){
@@ -1333,9 +1500,14 @@ function rebuildTable(filtered){
   const countStr = sorted.length > 500 ? `${sorted.length} deals (showing 500)` : `${sorted.length} deals`;
   document.getElementById('tablePanelCount').textContent = countStr;
   document.getElementById('listingPanelCount').textContent = `${sorted.length} deals`;
+  rebuildMobileCards(sorted);
 }
 
 function flyToListing(lat, lng){
+  if(isMobile()){
+    if(listingsPanelOpen) toggleListingsPanel();
+    setSheetState('collapsed');
+  }
   map.flyTo([lat, lng], 16, {duration:0.8});
   listingsLayer.eachLayer(layer => {
     if(layer.getLatLng){
@@ -1527,8 +1699,8 @@ window.addEventListener('DOMContentLoaded', function(){
         map.fitBounds([[minLat,minLng],[maxLat,maxLng]],{padding:[50,50]});
       }
 
-      // Auto-open the table panel
-      toggleListingsPanel();
+      // Auto-open the table panel (desktop only)
+      if(!isMobile()) toggleListingsPanel();
 
       // Set default sort to margin desc
       const th=document.querySelector('.listings-table th[data-sort="estMargin"]');
@@ -1549,6 +1721,109 @@ window.addEventListener('DOMContentLoaded', function(){
   } else {
     rebuildZoneToggles();
     updateStats();
+  }
+});
+
+// ══════════════════════════════════════════
+//  MOBILE OPTIMIZATION
+// ══════════════════════════════════════════
+
+function isMobile() { return window.innerWidth <= 768; }
+var sheetState = 'collapsed';
+
+function setSheetState(state) {
+  if (!isMobile()) return;
+  var sidebar = document.querySelector('.sidebar');
+  sheetState = state;
+  sidebar.classList.remove('sheet-half', 'sheet-full');
+  if (state === 'half') sidebar.classList.add('sheet-half');
+  else if (state === 'full') sidebar.classList.add('sheet-full');
+  if (state === 'collapsed') sidebar.scrollTop = 0;
+}
+
+function openMobileSheet() {
+  setSheetState('full');
+}
+
+function updatePeekStats() {
+  var el = document.getElementById('peekEligible');
+  var ml = document.getElementById('peekMargin');
+  if (!el || !ml) return;
+  el.textContent = document.getElementById('sb1123Count').textContent;
+  ml.textContent = document.getElementById('avgMargin').textContent;
+}
+
+function rebuildMobileCards(sorted) {
+  var container = document.getElementById('mobileCards');
+  if (!container) return;
+  var display = sorted.slice(0, 200);
+  container.innerHTML = display.map(function(l) {
+    var marginClass = (l.estMargin || 0) >= 0 ? 'profit-pos' : 'profit-neg';
+    var profitK = Math.round((l.estProfit || 0) / 1000);
+    var profitStr = profitK >= 0 ? '+$' + profitK.toLocaleString() + 'K' : '-$' + Math.abs(profitK).toLocaleString() + 'K';
+    return '<div class="mobile-card" onclick="flyToListing(' + l.lat + ',' + l.lng + ')">' +
+      '<div class="card-addr">' + l.address + '</div>' +
+      '<div class="card-grid">' +
+        '<div class="card-row"><span class="card-label">Zone</span><span class="card-value" style="color:' + (ZONE_COLORS[l.zone] || '#666') + '">' + (l.zone || '\u2014') + '</span></div>' +
+        '<div class="card-row"><span class="card-label">Price</span><span class="card-value">$' + l.price.toLocaleString() + '</span></div>' +
+        '<div class="card-row"><span class="card-label">Lot</span><span class="card-value">' + (l.lotSf ? l.lotSf.toLocaleString() + ' sf' : '\u2014') + '</span></div>' +
+        '<div class="card-row"><span class="card-label">Units</span><span class="card-value">' + l.maxUnits + '</span></div>' +
+      '</div>' +
+      '<div class="card-margin-row">' +
+        '<span class="card-profit ' + marginClass + '">' + profitStr + '</span>' +
+        '<span class="card-margin ' + marginClass + '">' + (l.estMargin || 0).toFixed(0) + '%</span>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// Sheet touch drag
+(function initSheetDrag() {
+  var handle = document.getElementById('sheetHandle');
+  if (!handle) return;
+  var startY, startH, sidebar, isDragging;
+
+  handle.addEventListener('touchstart', function(e) {
+    if (!isMobile()) return;
+    isDragging = false;
+    sidebar = document.querySelector('.sidebar');
+    startY = e.touches[0].clientY;
+    startH = sidebar.offsetHeight;
+    sidebar.style.transition = 'none';
+  }, { passive: true });
+
+  handle.addEventListener('touchmove', function(e) {
+    if (!isMobile() || !sidebar) return;
+    isDragging = true;
+    var dy = startY - e.touches[0].clientY;
+    var newH = Math.max(56, Math.min(window.innerHeight * 0.85, startH + dy));
+    sidebar.style.height = newH + 'px';
+    e.preventDefault();
+  }, { passive: false });
+
+  handle.addEventListener('touchend', function() {
+    if (!isMobile() || !sidebar) return;
+    sidebar.style.transition = '';
+    if (!isDragging) {
+      // Tap: toggle between collapsed and half
+      if (sheetState === 'collapsed') setSheetState('half');
+      else setSheetState('collapsed');
+      sidebar.style.height = '';
+      return;
+    }
+    var h = sidebar.offsetHeight;
+    var vh = window.innerHeight;
+    if (h < vh * 0.2) setSheetState('collapsed');
+    else if (h < vh * 0.6) setSheetState('half');
+    else setSheetState('full');
+    sidebar.style.height = '';
+  });
+})();
+
+// Tap map to collapse sheet
+map.on('click', function() {
+  if (isMobile() && sheetState !== 'collapsed') {
+    setSheetState('collapsed');
   }
 });
 </script>
