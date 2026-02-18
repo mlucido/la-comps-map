@@ -29,6 +29,11 @@ echo "📥 Step 1: Fetching active listings from Redfin..."
 python3 fetch_listings.py
 echo ""
 
+# Step 1b: Fetch parcel data + fire zones from LA County ArcGIS
+echo "📦 Step 1b: Fetching parcel data from LA County ArcGIS..."
+python3 fetch_parcels.py
+echo ""
+
 # Step 2: Optionally refresh sold comps
 if [ "$QUICK" = false ]; then
   echo "📥 Step 2: Fetching sold comps from Redfin..."
@@ -47,7 +52,7 @@ echo ""
 
 # Step 4: Push to GitHub Pages
 echo "🚀 Pushing to GitHub Pages..."
-git add data.js listings.js slopes.json
+git add data.js listings.js slopes.json parcels.json
 git commit -m "Refresh listing data $(date +%Y-%m-%d)" --allow-empty
 git push
 echo ""

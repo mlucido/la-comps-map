@@ -19,7 +19,6 @@
     --bg:#0f1117;--surface:#1a1d27;--surface2:#252833;
     --border:#2e3140;--text:#e4e6ed;--text-dim:#8b8fa3;--accent:#60a5fa;
     --green:#22c55e;--red:#ef4444;--yellow:#facc15;--orange:#f97316;
-    --deal-a:#22c55e;--deal-b:#4ade80;--deal-c:#facc15;--deal-d:#f97316;--deal-f:#ef4444;
   }
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column}
@@ -166,10 +165,6 @@
   .popup-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;margin-right:4px}
   .popup-badge.comp{background:rgba(96,165,250,0.15);color:var(--accent)}
   .popup-badge.listing{background:rgba(244,63,94,0.15);color:var(--listing)}
-  .popup-badge.deal-a{background:rgba(34,197,94,0.2);color:var(--deal-a)}
-  .popup-badge.deal-b{background:rgba(74,222,128,0.2);color:var(--deal-b)}
-  .popup-badge.deal-c{background:rgba(250,204,21,0.2);color:var(--deal-c)}
-  .popup-badge.deal-d{background:rgba(249,115,22,0.2);color:var(--deal-d)}
   .popup-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px 14px}
   .popup-label{font-size:10px;color:var(--text-dim)}
   .popup-value{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600}
@@ -184,12 +179,6 @@
   .legend-item:last-child{margin-bottom:0}
   .legend-dot{width:10px;height:10px;border-radius:2px}
   .legend-section{font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-dim);margin:6px 0 3px;font-weight:700}
-
-  /* Score bar inline */
-  .score-bar{display:inline-flex;align-items:center;gap:4px}
-  .score-bar-track{width:40px;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden}
-  .score-bar-fill{height:100%;border-radius:3px;transition:width 0.3s}
-  .score-bar-label{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;min-width:28px}
 
   .sidebar::-webkit-scrollbar{width:6px}
   .sidebar::-webkit-scrollbar-track{background:transparent}
@@ -239,7 +228,6 @@
   .listings-table tr{transition:background 0.1s}
   .listings-table tbody tr:hover{background:var(--surface2);cursor:pointer}
 
-  .listings-table .col-score{width:70px}
   .listings-table .col-addr{width:230px}
   .listings-table .col-zone{width:50px}
   .listings-table .col-price{width:95px}
@@ -338,7 +326,7 @@
     <div class="section-content">
       <div class="stats-grid">
         <div class="stat-card"><div class="stat-value green" id="sb1123Count">0</div><div class="stat-label">1123 Eligible</div></div>
-        <div class="stat-card"><div class="stat-value yellow" id="avgScore">0</div><div class="stat-label">Avg Score</div></div>
+        <div class="stat-card"><div class="stat-value yellow" id="avgMargin">0%</div><div class="stat-label">Avg Margin</div></div>
         <div class="stat-card"><div class="stat-value" id="totalListings">0</div><div class="stat-label">Total Listed</div></div>
       </div>
       <div class="stats-grid two-col" style="margin-top:6px">
@@ -360,26 +348,6 @@
       <button class="preset-btn" onclick="applyPreset('maxDensity')">Max Density<br><span style="font-size:9px;color:var(--text-dim)">15-25K lot, 10 units</span></button>
       <button class="preset-btn" onclick="applyPreset('value')">Below Market<br><span style="font-size:9px;color:var(--text-dim)">Low $/lot-SF, negotiate</span></button>
       <button class="preset-btn" onclick="applyPreset('stale')">Stale Listings<br><span style="font-size:9px;color:var(--text-dim)">60+ DOM</span></button>
-    </div>
-  </div>
-
-  <!-- Deal Score Filter -->
-  <div class="section collapsed">
-    <div class="section-title" onclick="toggleSection(this)">Deal Score <span class="chevron">▼</span></div>
-    <div class="section-content">
-      <div class="range-filter">
-        <div class="range-inputs">
-          <div class="input-group"><div class="input-label">Min</div><input type="number" id="scoreMin" step="5" min="0" max="100"></div>
-          <span class="separator">—</span>
-          <div class="input-group"><div class="input-label">Max</div><input type="number" id="scoreMax" step="5" min="0" max="100"></div>
-        </div>
-        <div class="range-slider-track">
-          <div class="range-slider-fill" id="scoreSliderFill"></div>
-          <input type="range" id="scoreSliderMin" min="0" max="100" step="5" value="0">
-          <input type="range" id="scoreSliderMax" min="0" max="100" step="5" value="100">
-        </div>
-        <button class="reset-btn" onclick="resetFilter('score')">Reset Score Filter</button>
-      </div>
     </div>
   </div>
 
@@ -604,7 +572,6 @@
       <thead>
         <tr>
           <th class="col-fav" data-sort="fav" onclick="sortTable('fav')"><span style="font-size:12px">&#9733;</span> <span class="sort-arrow">▲</span></th>
-          <th class="col-score" data-sort="dealScore" onclick="sortTable('dealScore')">Score <span class="sort-arrow">▼</span></th>
           <th class="col-addr" data-sort="address" onclick="sortTable('address')">Address <span class="sort-arrow">▲</span></th>
           <th class="col-zone" data-sort="zone" onclick="sortTable('zone')">Zone <span class="sort-arrow">▲</span></th>
           <th class="col-price" data-sort="price" onclick="sortTable('price')">Price <span class="sort-arrow">▲</span></th>
@@ -629,11 +596,6 @@
 // ── Constants ──
 const ZONE_COLORS = {R1:'#2563eb',R2:'#16a34a',R3:'#ea580c',R4:'#9333ea',LAND:'#b45309'};
 const ZONE_LABELS = {R1:'Single Family',R2:'Two Family',R3:'Multi-Family',R4:'High Density',LAND:'Vacant Land'};
-const SCORE_COLORS = {a:'#22c55e',b:'#4ade80',c:'#facc15',d:'#f97316',f:'#ef4444'};
-
-function scoreGrade(s){ return s>=70?'a':s>=50?'b':s>=30?'c':'d'; }
-function scoreColor(s){ return SCORE_COLORS[scoreGrade(s)]; }
-
 // Hood $/SF color scale: cool (cheap) → hot (expensive)
 function hoodPpsfColor(ppsf){
   if(!ppsf || ppsf <= 0) return '#888';
@@ -655,7 +617,6 @@ const zoneState = {R1:true,R2:false,R3:false,R4:false,LAND:false};
 let sb1123Mode = true;  // Default ON — we only care about 1123 deals
 
 const filters = {
-  score:{ min:0, max:100, dataMin:0, dataMax:100, step:5, cap:null, defaultMin:null, defaultMax:null },
   price:{ min:0, max:5000000, dataMin:0, dataMax:5000000, step:25000, cap:5000000, defaultMin:null, defaultMax:null },
   psf:  { min:0, max:2000, dataMin:0, dataMax:2000, step:25, cap:null, defaultMin:800, defaultMax:null },
   sqft: { min:0, max:7000, dataMin:0, dataMax:7000, step:100, cap:7000, defaultMin:null, defaultMax:null },
@@ -663,7 +624,7 @@ const filters = {
   slope:{ min:0, max:100, dataMin:0, dataMax:100, step:1, cap:100, defaultMin:null, defaultMax:10 },
 };
 
-let currentSort = { key:'dealScore', dir:'desc' };
+let currentSort = { key:'estMargin', dir:'desc' };
 let listingsPanelOpen = false;
 let favoritesOnly = false;
 
@@ -717,6 +678,13 @@ let proforma = {
 // ── Map ──
 const map = L.map('map',{center:[34.05,-118.35],zoom:11,zoomControl:false});
 L.control.zoom({position:'topright'}).addTo(map);
+
+// Custom panes so heatmap renders below listings
+map.createPane('heatmapPane').style.zIndex = 350;
+map.createPane('compDotsPane').style.zIndex = 360;
+const listingsPane = map.createPane('listingsPane');
+listingsPane.style.zIndex = 450;
+listingsPane.style.filter = 'drop-shadow(0 0 6px rgba(0,0,0,0.5))';
 
 // Base tile layers
 const baseLayers = {
@@ -808,7 +776,8 @@ function updateCompPoints(){
     const r = zoom >= 16 ? 6 : zoom >= 14 ? 4 : 3;
     const cm = L.circleMarker([c.lat,c.lng],{
       radius:r, color:'rgba(255,255,255,0.3)', fillColor:color,
-      fillOpacity:0.85, weight:0.8, renderer:compCanvasRenderer
+      fillOpacity:0.85, weight:0.8, renderer:compCanvasRenderer,
+      pane:'compDotsPane'
     });
     cm.bindPopup(`<div style="font-size:12px"><b>${c.address||'Sold Comp'}</b><br>
       <span style="font-family:monospace;font-size:14px;color:${color}">$${c.ppsf}/SF</span><br>
@@ -860,12 +829,7 @@ if(L.esri){
 }
 
 // ══════════════════════════════════════════
-//  SB 1123 DEAL SCORING ENGINE
-//  Starter Home Revitalization Act (eff. Jul 2025)
-//  Split lots into up to 10 parcels, build contiguous townhomes
-//  Min 1,200 SF per parcel (R1), 600 SF per parcel (R2-R4)
-//  Max 10 units, guaranteed FAR 1.0 (3-7 units) / 1.25 (8-10 units)
-//  No owner-occupancy, TIC allowed, CEQA exempt, 60-day approval
+//  SB 1123 ELIGIBILITY + PRO FORMA
 // ══════════════════════════════════════════
 
 // SB 1123 eligibility: R1-R4 + LAND zones, lot 10K+ SF
@@ -937,76 +901,6 @@ function calculateProForma(l){
   };
 }
 
-function calculateDealScore(l){
-  let score = 0;
-  let maxScore = 0;
-
-  // 1. Lot Size in Sweet Spot (0-30 pts)
-  // SB 1123 target: 10K-25K SF. Peak score at 12K-18K (8-10 townhomes)
-  maxScore += 30;
-  if(l.lotSf){
-    if(l.lotSf >= 12000 && l.lotSf <= 18000) score += 30;      // Perfect: 10 units, efficient
-    else if(l.lotSf >= 10000 && l.lotSf <= 25000) score += 25;  // Target range
-    else if(l.lotSf >= 8000 && l.lotSf < 10000) score += 10;    // Just under, still viable
-    else if(l.lotSf > 25000 && l.lotSf <= 35000) score += 15;   // Big but workable
-  }
-
-  // 2. Unit Density (0-20 pts) — more units = more revenue
-  maxScore += 20;
-  const units = getMaxUnits(l);
-  if(units >= 10) score += 20;
-  else if(units >= 8) score += 16;
-  else if(units >= 6) score += 12;
-  else if(units >= 4) score += 6;
-  else if(units >= 2) score += 2;
-
-  // 3. Acquisition $/Lot-SF (0-20 pts) — cheaper land = better economics
-  maxScore += 20;
-  if(l.lotSf){
-    const landPpsf = l.price / l.lotSf;
-    // LA County land values vary hugely. Lower is better for development.
-    if(landPpsf <= 50) score += 20;
-    else if(landPpsf <= 75) score += 16;
-    else if(landPpsf <= 100) score += 12;
-    else if(landPpsf <= 150) score += 8;
-    else if(landPpsf <= 200) score += 4;
-  }
-
-  // 4. Pro Forma Profitability (0-15 pts)
-  maxScore += 15;
-  const pf = calculateProForma(l);
-  if(pf.margin >= 50) score += 15;
-  else if(pf.margin >= 35) score += 12;
-  else if(pf.margin >= 20) score += 9;
-  else if(pf.margin >= 10) score += 5;
-  else if(pf.margin > 0) score += 2;
-
-  // 5. Days on Market (0-10 pts) — stale = negotiation leverage
-  maxScore += 10;
-  if(l.dom !== null && l.dom !== undefined){
-    if(l.dom >= 120) score += 10;
-    else if(l.dom >= 90) score += 8;
-    else if(l.dom >= 60) score += 6;
-    else if(l.dom >= 30) score += 4;
-    else if(l.dom >= 14) score += 2;
-  }
-
-  // 6. Underutilized lot — small/old structure relative to lot (0-5 pts)
-  // Signals potential vacancy or easy teardown for SB 1123
-  maxScore += 5;
-  if(l.zone === 'LAND' || (l.lotSf && !l.sqft)){
-    score += 5;  // Vacant land — ideal for 1123
-  } else if(l.lotSf && l.sqft){
-    const far = l.sqft / l.lotSf;
-    if(far <= 0.10) score += 5;       // Nearly vacant — ideal for 1123
-    else if(far <= 0.20) score += 4;   // Very underbuilt
-    else if(far <= 0.30) score += 3;
-    else if(far <= 0.40) score += 1;
-  }
-
-  return maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
-}
-
 // Generate ZIMAS lookup URL for LA City properties
 function getZimasUrl(l){
   const addr = (l.address || '').split(',')[0].trim();
@@ -1030,7 +924,6 @@ function enrichListings(){
     l.guaranteedFAR = pf.guaranteedFAR;
     l.buildableSf = pf.buildableSf;
     l.landPpsf = l.lotSf ? Math.round(l.price / l.lotSf) : null;
-    l.dealScore = calculateDealScore(l);
   });
 }
 
@@ -1058,14 +951,13 @@ function getFilteredListings(){
     const isLand = l.zone === 'LAND';
     const psfOk = isLand || (l.ppsf >= filters.psf.min && l.ppsf <= filters.psf.max);
     const sqftOk = isLand || (l.sqft >= filters.sqft.min && l.sqft <= filters.sqft.max);
-    const scoreOk = (l.dealScore || 0) >= filters.score.min && (l.dealScore || 0) <= filters.score.max;
     const lotVal = l.lotSf || 0;
     const lotAtDefault = filters.lot.min === filters.lot.dataMin && filters.lot.max === filters.lot.dataMax;
     const lotOk = lotAtDefault ? true : (lotVal >= filters.lot.min && lotVal <= filters.lot.max);
     const slopeVal = l.slope != null ? l.slope : 0;
     const slopeAtDefault = filters.slope.min === filters.slope.dataMin && filters.slope.max === filters.slope.dataMax;
     const slopeOk = slopeAtDefault ? true : (slopeVal >= filters.slope.min && slopeVal <= filters.slope.max);
-    return zoneOk && priceOk && psfOk && sqftOk && lotOk && scoreOk && slopeOk;
+    return zoneOk && priceOk && psfOk && sqftOk && lotOk && slopeOk;
   });
 }
 
@@ -1104,23 +996,22 @@ function rebuildListings(){
   const filtered = getFilteredListings();
 
   filtered.forEach(l => {
-    const sc = l.dealScore || 0;
     const exitPpsf = l.newconPpsf || l.hoodPpsf;
     const color = hoodPpsfColor(exitPpsf);
-    const radius = sc >= 70 ? 8 : sc >= 50 ? 7 : sc >= 30 ? 6 : 5;
+    const lotSf = l.lotSf || 0;
+    const radius = lotSf >= 15000 ? 11 : lotSf >= 10000 ? 9 : 8;
     const cm = L.circleMarker([l.lat,l.lng],{
-      radius, color, fillColor:color,
-      fillOpacity: 0.8,
-      weight: sc >= 70 ? 3 : 2,
+      radius, color:'#fff', fillColor:color,
+      fillOpacity: 0.95,
+      weight: 3,
+      pane:'listingsPane',
     });
 
     const delta = l.hoodPpsf ? l.ppsf - l.hoodPpsf : null;
-    const grade = scoreGrade(sc);
     const pf = calculateProForma(l);
 
     cm.bindPopup(`
-      <div class="popup-badge deal-${grade}">Score: ${sc}/100</div>
-      ${l.sb1123Eligible ? '<div class="popup-badge deal-a">SB 1123</div>' : ''}
+      ${l.sb1123Eligible ? '<div class="popup-badge" style="background:rgba(34,197,94,0.2);color:var(--green)">SB 1123</div>' : ''}
       <div class="popup-title">${l.address || 'N/A'}</div>
       <div class="popup-grid">
         <div><div class="popup-label">List Price</div><div class="popup-value" style="color:${color}">$${l.price.toLocaleString()}</div></div>
@@ -1136,6 +1027,9 @@ function rebuildListings(){
         ${l.slope!=null?`<div><div class="popup-label">Lot Slope</div><div class="popup-value" style="color:${l.slope<5?'var(--green)':l.slope<15?'var(--yellow)':l.slope<25?'var(--orange)':'var(--red)'}">${l.slope}%</div></div>`:''}
         ${l.fireZone?`<div><div class="popup-label">Fire Zone</div><div class="popup-value" style="color:var(--red)">VHFHSZ</div></div>`:''}
         ${l.hoa?`<div><div class="popup-label">HOA</div><div class="popup-value">$${l.hoa}/mo</div></div>`:''}
+        ${l.ain?`<div><div class="popup-label">AIN</div><div class="popup-value">${l.ain}</div></div>`:''}
+        ${l.assessedLandValue?`<div><div class="popup-label">Land Assessed</div><div class="popup-value">$${l.assessedLandValue.toLocaleString()}</div></div>`:''}
+        ${l.assessedImpValue?`<div><div class="popup-label">Imp Assessed</div><div class="popup-value">$${l.assessedImpValue.toLocaleString()}</div></div>`:''}
 
         <div class="popup-divider"></div>
         <div class="popup-section-label">SB 1123 Pro Forma — ${pf.maxUnits} Townhomes</div>
@@ -1290,17 +1184,15 @@ function applyPreset(name){
   if(name === 'sweet'){
     // Sweet spot: 10-15K SF lots = 8-10 townhomes, efficient build
     setFilter('lot', 10000, 15000);
-    setFilter('score', 40, 100);
   } else if(name === 'maxDensity'){
     // Max density: 15-25K SF lots, all 10 units
     setFilter('lot', 15000, 25000);
   } else if(name === 'value'){
-    // Below-market land acquisition
-    setFilter('score', 50, 100);
+    // Below-market land acquisition — sort by margin
+    currentSort = {key:'estMargin', dir:'desc'};
   } else if(name === 'stale'){
     // Stale inventory — negotiation leverage
     currentSort = {key:'dom', dir:'desc'};
-    setFilter('score', 30, 100);
   }
   applyFilters();
 }
@@ -1323,13 +1215,13 @@ function setFilter(key, min, max){
 // ── Stats ──
 function updateStats(){
   const filtered = getFilteredListings();
-  const scores = filtered.map(l=>l.dealScore||0);
+  const margins = filtered.map(l=>l.estMargin||0);
   const ppus = filtered.filter(l=>l.pricePerUnit>0).map(l=>l.pricePerUnit).sort((a,b)=>a-b);
   const ppsfs = filtered.map(l=>l.ppsf).sort((a,b)=>a-b);
 
   const sb1123 = filtered.filter(l=>l.sb1123Eligible);
   document.getElementById('sb1123Count').textContent = sb1123.length.toLocaleString();
-  document.getElementById('avgScore').textContent = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
+  document.getElementById('avgMargin').textContent = margins.length ? Math.round(margins.reduce((a,b)=>a+b,0)/margins.length)+'%' : '0%';
   document.getElementById('totalListings').textContent = filtered.length.toLocaleString();
   document.getElementById('medPpu').textContent = ppus.length ? '$'+(ppus[Math.floor(ppus.length/2)]).toLocaleString() : '$0';
   document.getElementById('medPpsf').textContent = ppsfs.length ? '$'+ppsfs[Math.floor(ppsfs.length/2)] : '$0';
@@ -1382,7 +1274,6 @@ function getSortValue(l, key){
   if(key==='salePerUnit') return l.salePerUnit||0;
   if(key==='estProfit') return l.estProfit||(-Infinity);
   if(key==='estMargin') return l.estMargin||(-Infinity);
-  if(key==='dealScore') return l.dealScore||0;
   const v=l[key]; return v===null||v===undefined ? -Infinity : v;
 }
 
@@ -1416,8 +1307,6 @@ function rebuildTable(filtered){
   const display = sorted.slice(0, 500);
 
   tbody.innerHTML = display.map(l => {
-    const sc = l.dealScore||0;
-    const color = scoreColor(sc);
     const zoneColor = ZONE_COLORS[l.zone]||'#666';
     const profitClass = (l.estProfit||0)>=0?'profit-pos':'profit-neg';
     const marginClass = (l.estMargin||0)>=0?'profit-pos':'profit-neg';
@@ -1425,7 +1314,6 @@ function rebuildTable(filtered){
     const exitPpsf = l.newconPpsf || l.hoodPpsf;
     return `<tr onclick="flyToListing(${l.lat},${l.lng})">
       <td class="col-fav"><span class="fav-star ${starred?'active':''}" onclick="event.stopPropagation();toggleFavorite(${l.lat},${l.lng})">&#9733;</span></td>
-      <td class="col-score"><div class="score-bar"><div class="score-bar-track"><div class="score-bar-fill" style="width:${sc}%;background:${color}"></div></div><span class="score-bar-label" style="color:${color}">${sc}</span></div></td>
       <td class="col-addr" title="${l.address}">${l.address}</td>
       <td class="col-zone"><span class="zone-pill" style="background:${zoneColor}22;color:${zoneColor}">${l.zone||'—'}</span></td>
       <td class="col-price mono">$${l.price.toLocaleString()}</td>
@@ -1520,7 +1408,7 @@ function applyFilters(){
 
 function resetFilter(key){
   if(key==='all'){
-    ['score','price','psf','sqft','lot','slope'].forEach(k=>resetFilter(k));
+    ['price','psf','sqft','lot','slope'].forEach(k=>resetFilter(k));
     sb1123Mode=false;
     document.getElementById('sb1123Toggle').classList.remove('active');
     document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
@@ -1551,15 +1439,15 @@ function onProformaChange(){
 function exportCSV(){
   const filtered = getFilteredListings();
   if(!filtered.length) return;
-  const headers = ['Fav','Score','Address','Zone','Price','Lot SF','Units','Exit $/SF','Sale/Unit','Buy/Unit','Build/Unit','Profit','Margin %','Slope %','DOM','City','Notes','URL'];
+  const headers = ['Fav','Address','Zone','Price','Lot SF','Units','Exit $/SF','Sale/Unit','Buy/Unit','Build/Unit','Profit','Margin %','Slope %','DOM','City','AIN','Notes','URL'];
   const favs = loadFavorites();
   const rows = filtered.map(l=>[
-    favs[listingKey(l)]?'*':'', l.dealScore, l.address, l.zone, l.price,
+    favs[listingKey(l)]?'*':'', l.address, l.zone, l.price,
     l.lotSf||'', l.maxUnits, l.newconPpsf||l.hoodPpsf||l.ppsf,
     l.salePerUnit||'', l.pricePerUnit||'', l.buildPerUnit||'',
     Math.round(l.estProfit||0), (l.estMargin||0).toFixed(1),
     l.slope!=null?l.slope:'', l.dom!==null?l.dom:'', l.city||'',
-    (favs[listingKey(l)]||{}).notes||'', l.url||''
+    l.ain||'', (favs[listingKey(l)]||{}).notes||'', l.url||''
   ]);
   const csv = [headers,...rows].map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
   const blob = new Blob([csv], {type:'text/csv'});
@@ -1594,8 +1482,6 @@ window.addEventListener('DOMContentLoaded', function(){
       }
       const lotsWithData = LISTINGS.filter(l=>l.lotSf&&l.lotSf>0);
       if(lotsWithData.length) initRangeFilter('lot', l=>l.lotSf||0, lotsWithData);
-      // Score filter always 0-100
-      initRangeFilter('score', l=>l.dealScore||0, LISTINGS);
       const withSlope = LISTINGS.filter(l=>l.slope!=null);
       if(withSlope.length) initRangeFilter('slope', l=>l.slope!=null?l.slope:0, withSlope);
 
@@ -1612,6 +1498,7 @@ window.addEventListener('DOMContentLoaded', function(){
           maxZoom: 15,
           max: 1.0,
           minOpacity: 0.25,
+          pane:'heatmapPane',
           gradient: {0.0:'#1e50b4', 0.15:'#1e88e5', 0.3:'#1ea0b4', 0.45:'#43a047', 0.6:'#b4d232', 0.75:'#f0b41e', 0.88:'#f0641e', 1.0:'#dc2828'}
         });
         document.getElementById('heatCount').textContent = heatPts.length.toLocaleString();
@@ -1643,8 +1530,8 @@ window.addEventListener('DOMContentLoaded', function(){
       // Auto-open the table panel
       toggleListingsPanel();
 
-      // Set default sort to deal score desc
-      const th=document.querySelector('.listings-table th[data-sort="dealScore"]');
+      // Set default sort to margin desc
+      const th=document.querySelector('.listings-table th[data-sort="estMargin"]');
       if(th){th.classList.add('sorted');th.querySelector('.sort-arrow').textContent='▼';}
 
       // Data freshness indicator
