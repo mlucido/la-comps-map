@@ -221,7 +221,7 @@
   .listings-table-wrap::-webkit-scrollbar-track{background:transparent}
   .listings-table-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 
-  .listings-table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;min-width:1500px}
+  .listings-table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;min-width:1300px}
   .listings-table thead{position:sticky;top:0;z-index:1}
   .listings-table th{
     background:var(--surface2);padding:7px 10px;text-align:left;font-size:9px;
@@ -239,24 +239,21 @@
   .listings-table tbody tr:hover{background:var(--surface2);cursor:pointer}
 
   .listings-table .col-score{width:70px}
-  .listings-table .col-addr{width:220px}
+  .listings-table .col-addr{width:230px}
   .listings-table .col-zone{width:50px}
   .listings-table .col-price{width:95px}
-  .listings-table .col-ppsf{width:65px}
-  .listings-table .col-hood{width:80px}
-  .listings-table .col-delta{width:65px}
   .listings-table .col-lot{width:75px}
   .listings-table .col-units{width:55px}
+  .listings-table .col-hood{width:80px}
+  .listings-table .col-sale{width:90px}
   .listings-table .col-ppu{width:90px}
   .listings-table .col-profit{width:90px}
-  .listings-table .col-sqft{width:75px}
+  .listings-table .col-margin{width:65px}
   .listings-table .col-slope{width:60px}
   .listings-table .col-dom{width:45px}
   .listings-table .col-link{width:45px}
 
   .listings-table .zone-pill{display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;letter-spacing:0.03em}
-  .listings-table .delta-pos{color:var(--red)}
-  .listings-table .delta-neg{color:var(--green)}
   .listings-table .redfin-link{color:var(--accent);text-decoration:none;font-size:10px}
   .listings-table .redfin-link:hover{text-decoration:underline}
   .listings-table .profit-pos{color:var(--green)}
@@ -581,13 +578,11 @@
   <div class="legend-item"><div class="legend-dot" style="background:var(--r3)"></div> R3 Multi-Family</div>
   <div class="legend-item"><div class="legend-dot" style="background:var(--r4)"></div> R4 High Density</div>
   <div class="legend-item"><div class="legend-dot" style="background:var(--land)"></div> Vacant Land</div>
-  <div class="legend-section" style="margin-top:8px">Listings (Hood $/SF)</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#2563eb;border-radius:50%"></div> &lt;$300 Value</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;border-radius:50%"></div> $300-450</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#22c55e;border-radius:50%"></div> $450-600</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#eab308;border-radius:50%"></div> $600-750</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#f97316;border-radius:50%"></div> $750-900</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#ef4444;border-radius:50%"></div> $900+ Premium</div>
+  <div class="legend-section" style="margin-top:8px">Listings (Deal Score)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#22c55e;border-radius:50%"></div> 70+ A-Grade Deal</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#4ade80;border-radius:50%"></div> 50-69 B-Grade</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#facc15;border-radius:50%"></div> 30-49 C-Grade</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f97316;border-radius:50%"></div> &lt;30 D-Grade</div>
 </div>
 </div><!-- /app-row -->
 
@@ -608,14 +603,13 @@
           <th class="col-addr" data-sort="address" onclick="sortTable('address')">Address <span class="sort-arrow">▲</span></th>
           <th class="col-zone" data-sort="zone" onclick="sortTable('zone')">Zone <span class="sort-arrow">▲</span></th>
           <th class="col-price" data-sort="price" onclick="sortTable('price')">Price <span class="sort-arrow">▲</span></th>
-          <th class="col-ppsf" data-sort="ppsf" onclick="sortTable('ppsf')">$/SF <span class="sort-arrow">▲</span></th>
-          <th class="col-hood" data-sort="hoodPpsf" onclick="sortTable('hoodPpsf')">Hood $/SF <span class="sort-arrow">▲</span></th>
-          <th class="col-delta" data-sort="delta" onclick="sortTable('delta')">Delta <span class="sort-arrow">▲</span></th>
           <th class="col-lot" data-sort="lotSf" onclick="sortTable('lotSf')">Lot SF <span class="sort-arrow">▲</span></th>
           <th class="col-units" data-sort="maxUnits" onclick="sortTable('maxUnits')">Units <span class="sort-arrow">▲</span></th>
-          <th class="col-ppu" data-sort="pricePerUnit" onclick="sortTable('pricePerUnit')">$/Unit <span class="sort-arrow">▲</span></th>
-          <th class="col-profit" data-sort="estProfit" onclick="sortTable('estProfit')">Est Profit <span class="sort-arrow">▲</span></th>
-          <th class="col-sqft" data-sort="sqft" onclick="sortTable('sqft')">Struct <span class="sort-arrow">▲</span></th>
+          <th class="col-hood" data-sort="hoodPpsf" onclick="sortTable('hoodPpsf')">Exit $/SF <span class="sort-arrow">▲</span></th>
+          <th class="col-sale" data-sort="salePerUnit" onclick="sortTable('salePerUnit')">Sale/Unit <span class="sort-arrow">▲</span></th>
+          <th class="col-ppu" data-sort="pricePerUnit" onclick="sortTable('pricePerUnit')">Buy/Unit <span class="sort-arrow">▲</span></th>
+          <th class="col-profit" data-sort="estProfit" onclick="sortTable('estProfit')">Profit <span class="sort-arrow">▲</span></th>
+          <th class="col-margin" data-sort="estMargin" onclick="sortTable('estMargin')">Margin <span class="sort-arrow">▲</span></th>
           <th class="col-slope" data-sort="slope" onclick="sortTable('slope')">Slope <span class="sort-arrow">▲</span></th>
           <th class="col-dom" data-sort="dom" onclick="sortTable('dom')">DOM <span class="sort-arrow">▲</span></th>
           <th class="col-link">Link</th>
@@ -950,6 +944,8 @@ function enrichListings(){
     l.totalCost = pf.totalCost;
     l.netRevenue = pf.netRevenue;
     l.totalBuildCost = pf.totalBuildCost;
+    l.salePerUnit = pf.maxUnits > 0 ? Math.round(pf.netRevenue / pf.maxUnits) : 0;
+    l.buildPerUnit = pf.maxUnits > 0 ? Math.round(pf.totalBuildCost / pf.maxUnits) : 0;
     l.guaranteedFAR = pf.guaranteedFAR;
     l.buildableSf = pf.buildableSf;
     l.landPpsf = l.lotSf ? Math.round(l.price / l.lotSf) : null;
@@ -1028,7 +1024,7 @@ function rebuildListings(){
 
   filtered.forEach(l => {
     const sc = l.dealScore || 0;
-    const color = hoodPpsfColor(l.hoodPpsf);
+    const color = scoreColor(sc);
     const radius = sc >= 70 ? 8 : sc >= 50 ? 7 : sc >= 30 ? 6 : 5;
     const cm = L.circleMarker([l.lat,l.lng],{
       radius, color, fillColor:color,
@@ -1060,19 +1056,25 @@ function rebuildListings(){
         ${l.hoa?`<div><div class="popup-label">HOA</div><div class="popup-value">$${l.hoa}/mo</div></div>`:''}
 
         <div class="popup-divider"></div>
-        <div class="popup-section-label">SB 1123 Townhome Pro Forma</div>
-        <div><div class="popup-label">Max Townhomes</div><div class="popup-value" style="color:${pf.maxUnits>=8?'var(--green)':pf.maxUnits>=5?'var(--yellow)':'var(--text)'}">${pf.maxUnits} units</div></div>
-        <div><div class="popup-label">Guaranteed FAR</div><div class="popup-value">${pf.guaranteedFAR}x</div></div>
-        <div><div class="popup-label">Buildable SF</div><div class="popup-value">${pf.buildableSf.toLocaleString()} sf</div></div>
-        <div><div class="popup-label">Land $/SF</div><div class="popup-value">$${l.lotSf?Math.round(l.price/l.lotSf):0}</div></div>
-        <div><div class="popup-label">Acq $/Unit</div><div class="popup-value">$${pf.pricePerUnit.toLocaleString()}</div></div>
-        <div><div class="popup-label">Build Cost</div><div class="popup-value">$${Math.round(pf.totalBuildCost).toLocaleString()}</div></div>
+        <div class="popup-section-label">SB 1123 Pro Forma — ${pf.maxUnits} Townhomes</div>
+        <div><div class="popup-label">Guaranteed FAR</div><div class="popup-value">${pf.guaranteedFAR}x (${pf.buildableSf.toLocaleString()} sf)</div></div>
+        <div><div class="popup-label">Exit $/SF</div><div class="popup-value" style="color:var(--green)">$${(l.newconPpsf||l.hoodPpsf||l.ppsf)}</div></div>
+        ${l.dom!==null&&l.dom!==undefined?`<div><div class="popup-label">Days on Market</div><div class="popup-value" style="color:${l.dom>=60?'var(--green)':l.dom>=30?'var(--yellow)':'var(--text)'}">${l.dom}</div></div>`:''}
+        ${l.lotSf&&l.sqft?`<div><div class="popup-label">Current FAR</div><div class="popup-value">${(l.sqft/l.lotSf).toFixed(2)}</div></div>`:''}
+
+        <div class="popup-divider"></div>
+        <div class="popup-section-label">Per-Unit Economics</div>
+        <div><div class="popup-label">Buy / Unit</div><div class="popup-value">$${pf.pricePerUnit.toLocaleString()}</div></div>
+        <div><div class="popup-label">Build / Unit</div><div class="popup-value">$${Math.round(pf.totalBuildCost/pf.maxUnits).toLocaleString()}</div></div>
+        <div><div class="popup-label">Sell / Unit</div><div class="popup-value" style="color:var(--green)">$${Math.round(pf.netRevenue/pf.maxUnits).toLocaleString()}</div></div>
+        <div><div class="popup-label">Profit / Unit</div><div class="popup-value ${pf.profit>=0?'popup-profit-positive':'popup-profit-negative'}">$${Math.round(pf.profit/pf.maxUnits).toLocaleString()}</div></div>
+
+        <div class="popup-divider"></div>
+        <div class="popup-section-label">Total Project</div>
         <div><div class="popup-label">Total Cost</div><div class="popup-value">$${Math.round(pf.totalCost).toLocaleString()}</div></div>
         <div><div class="popup-label">Net Revenue</div><div class="popup-value">$${Math.round(pf.netRevenue).toLocaleString()}</div></div>
         <div><div class="popup-label">Est Profit</div><div class="popup-value ${pf.profit>=0?'popup-profit-positive':'popup-profit-negative'}">$${Math.round(pf.profit).toLocaleString()}</div></div>
         <div><div class="popup-label">Margin</div><div class="popup-value ${pf.margin>=0?'popup-profit-positive':'popup-profit-negative'}">${pf.margin.toFixed(1)}%</div></div>
-        ${l.dom!==null&&l.dom!==undefined?`<div><div class="popup-label">Days on Market</div><div class="popup-value">${l.dom}</div></div>`:''}
-        ${l.lotSf&&l.sqft?`<div><div class="popup-label">Current FAR</div><div class="popup-value">${(l.sqft/l.lotSf).toFixed(2)}</div></div>`:''}
 
         <div class="popup-divider"></div>
         <div class="popup-section-label">ZIMAS Due Diligence</div>
@@ -1281,11 +1283,11 @@ function rebuildZoneToggles(){
 
 function getSortValue(l, key){
   if(key==='fav') return isFavorite(l)?1:0;
-  if(key==='delta') return l.hoodPpsf ? l.ppsf - l.hoodPpsf : -Infinity;
-  if(key==='beds') return parseFloat(l.beds)||0;
   if(key==='maxUnits') return l.maxUnits||1;
   if(key==='pricePerUnit') return l.pricePerUnit||Infinity;
+  if(key==='salePerUnit') return l.salePerUnit||0;
   if(key==='estProfit') return l.estProfit||(-Infinity);
+  if(key==='estMargin') return l.estMargin||(-Infinity);
   if(key==='dealScore') return l.dealScore||0;
   const v=l[key]; return v===null||v===undefined ? -Infinity : v;
 }
@@ -1322,26 +1324,24 @@ function rebuildTable(filtered){
   tbody.innerHTML = display.map(l => {
     const sc = l.dealScore||0;
     const color = scoreColor(sc);
-    const delta = l.hoodPpsf ? l.ppsf - l.hoodPpsf : null;
-    const deltaClass = delta>0?'delta-pos':delta<0?'delta-neg':'';
-    const deltaStr = delta!==null ? `${delta>0?'+':''}${delta}` : '—';
     const zoneColor = ZONE_COLORS[l.zone]||'#666';
     const profitClass = (l.estProfit||0)>=0?'profit-pos':'profit-neg';
+    const marginClass = (l.estMargin||0)>=0?'profit-pos':'profit-neg';
     const starred = isFavorite(l);
+    const exitPpsf = l.newconPpsf || l.hoodPpsf;
     return `<tr onclick="flyToListing(${l.lat},${l.lng})">
       <td class="col-fav"><span class="fav-star ${starred?'active':''}" onclick="event.stopPropagation();toggleFavorite(${l.lat},${l.lng})">&#9733;</span></td>
       <td class="col-score"><div class="score-bar"><div class="score-bar-track"><div class="score-bar-fill" style="width:${sc}%;background:${color}"></div></div><span class="score-bar-label" style="color:${color}">${sc}</span></div></td>
       <td class="col-addr" title="${l.address}">${l.address}</td>
       <td class="col-zone"><span class="zone-pill" style="background:${zoneColor}22;color:${zoneColor}">${l.zone||'—'}</span></td>
       <td class="col-price mono">$${l.price.toLocaleString()}</td>
-      <td class="col-ppsf mono">$${l.ppsf}</td>
-      <td class="col-hood mono">${l.hoodPpsf?'$'+l.hoodPpsf:'—'}</td>
-      <td class="col-delta mono ${deltaClass}">${deltaStr}</td>
       <td class="col-lot mono">${l.lotSf?l.lotSf.toLocaleString():'—'}</td>
-      <td class="col-units mono" style="color:${l.maxUnits>=4?'var(--green)':l.maxUnits>=2?'var(--yellow)':'var(--text-dim)'}">${l.maxUnits}</td>
+      <td class="col-units mono" style="color:${l.maxUnits>=8?'var(--green)':l.maxUnits>=4?'var(--yellow)':'var(--text-dim)'}">${l.maxUnits}</td>
+      <td class="col-hood mono">${exitPpsf?'$'+exitPpsf:'—'}</td>
+      <td class="col-sale mono">${l.salePerUnit?'$'+(l.salePerUnit).toLocaleString():'—'}</td>
       <td class="col-ppu mono">$${(l.pricePerUnit||0).toLocaleString()}</td>
       <td class="col-profit mono ${profitClass}">$${Math.round(l.estProfit||0).toLocaleString()}</td>
-      <td class="col-sqft mono">${l.sqft.toLocaleString()}</td>
+      <td class="col-margin mono ${marginClass}">${(l.estMargin||0).toFixed(0)}%</td>
       <td class="col-slope mono" style="color:${l.slope!=null?(l.slope<5?'var(--green)':l.slope<15?'var(--yellow)':l.slope<25?'var(--orange)':'var(--red)'):'var(--text-dim)'}">${l.slope!=null?l.slope+'%':'—'}</td>
       <td class="col-dom mono">${l.dom!==null&&l.dom!==undefined?l.dom:'—'}</td>
       <td class="col-link">${l.url?'<a class="redfin-link" href="'+l.url+'" target="_blank" onclick="event.stopPropagation()">View</a>':''}</td>
@@ -1457,14 +1457,14 @@ function onProformaChange(){
 function exportCSV(){
   const filtered = getFilteredListings();
   if(!filtered.length) return;
-  const headers = ['Fav','Score','Address','Zone','Price','$/SF','Hood $/SF','Delta','Lot SF','Max Units','$/Unit','Est Profit','Margin %','Structure SF','Slope %','Beds','Baths','DOM','Notes','URL'];
+  const headers = ['Fav','Score','Address','Zone','Price','Lot SF','Units','Exit $/SF','Sale/Unit','Buy/Unit','Build/Unit','Profit','Margin %','Slope %','DOM','City','Notes','URL'];
   const favs = loadFavorites();
   const rows = filtered.map(l=>[
-    favs[listingKey(l)]?'*':'', l.dealScore, l.address, l.zone, l.price, l.ppsf,
-    l.hoodPpsf||'', l.hoodPpsf?l.ppsf-l.hoodPpsf:'',
-    l.lotSf||'', l.maxUnits, l.pricePerUnit||'',
+    favs[listingKey(l)]?'*':'', l.dealScore, l.address, l.zone, l.price,
+    l.lotSf||'', l.maxUnits, l.newconPpsf||l.hoodPpsf||l.ppsf,
+    l.salePerUnit||'', l.pricePerUnit||'', l.buildPerUnit||'',
     Math.round(l.estProfit||0), (l.estMargin||0).toFixed(1),
-    l.sqft, l.slope!=null?l.slope:'', l.beds, l.baths, l.dom!==null?l.dom:'',
+    l.slope!=null?l.slope:'', l.dom!==null?l.dom:'', l.city||'',
     (favs[listingKey(l)]||{}).notes||'', l.url||''
   ]);
   const csv = [headers,...rows].map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
