@@ -830,9 +830,10 @@ function getGuaranteedFAR(units){
 function calculateProForma(l){
   const maxUnits = getMaxUnits(l);
   const pf = proforma;
-  const valuePerSf = l.hoodPpsf || l.ppsf;
+  // Prefer new-construction comps (what we're actually selling), fall back to existing
+  const valuePerSf = l.newconPpsf || l.hoodPpsf || l.ppsf;
 
-  // Revenue: sell townhome units at neighborhood $/SF
+  // Revenue: sell townhome units at local $/SF (new-con preferred)
   const grossPerUnit = valuePerSf * pf.avgUnitSf;
   const grossRevenue = maxUnits * grossPerUnit;
   const netRevenue = grossRevenue * (1 - pf.saleDiscountPct / 100);
