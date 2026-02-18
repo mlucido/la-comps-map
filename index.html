@@ -313,6 +313,7 @@
   }
   .popup-fav-btn:hover{border-color:#facc15}
   .popup-fav-btn.active{border-color:#facc15;background:rgba(250,204,21,0.1);color:#facc15}
+  .comp-psf-label{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:#e2e8f0;text-shadow:0 0 3px rgba(0,0,0,0.9),0 0 6px rgba(0,0,0,0.7);white-space:nowrap;text-align:center;pointer-events:none}
 </style>
 </head>
 <body class="light-mode">
@@ -753,6 +754,77 @@ let parcelLayer = null;
 let floodZoneLayer = null;
 let liquefactionLayer = null;
 let compHeatLayer = null;
+let compPointsLayer = L.layerGroup();
+let compLabelsLayer = L.layerGroup();
+let compSpatialGrid = {};  // grid for fast viewport queries
+
+// Build spatial grid for comps (0.005° cells ≈ 500m)
+function buildCompGrid(comps){
+  const grid = {};
+  const S = 0.005;
+  comps.forEach(c=>{
+    if(!c.ppsf || c.ppsf <= 0) return;
+    const key = Math.floor(c.lat/S)+','+Math.floor(c.lng/S);
+    if(!grid[key]) grid[key]=[];
+    grid[key].push(c);
+  });
+  return grid;
+}
+
+// Query comps in a bounding box from grid
+function queryCompGrid(bounds){
+  const S = 0.005;
+  const s=bounds.getSouth(), n=bounds.getNorth(), w=bounds.getWest(), e=bounds.getEast();
+  const rMin=Math.floor(s/S), rMax=Math.floor(n/S);
+  const cMin=Math.floor(w/S), cMax=Math.floor(e/S);
+  const result=[];
+  for(let r=rMin;r<=rMax;r++){
+    for(let c=cMin;c<=cMax;c++){
+      const cell=compSpatialGrid[r+','+c];
+      if(cell) result.push(...cell);
+    }
+  }
+  return result;
+}
+
+// Render comp points + labels for current viewport
+function updateCompPoints(){
+  compPointsLayer.clearLayers();
+  compLabelsLayer.clearLayers();
+  if(!layerState.compHeat) return;
+  const zoom = map.getZoom();
+  if(zoom < 13) return;
+
+  const bounds = map.getBounds();
+  const visible = queryCompGrid(bounds);
+  const showLabels = zoom >= 15;
+
+  visible.forEach(c=>{
+    const color = hoodPpsfColor(c.ppsf);
+    const r = zoom >= 16 ? 6 : zoom >= 14 ? 4 : 3;
+    const cm = L.circleMarker([c.lat,c.lng],{
+      radius:r, color:'rgba(255,255,255,0.3)', fillColor:color,
+      fillOpacity:0.85, weight:0.8, renderer:L.canvas()
+    });
+    cm.bindPopup(`<div style="font-size:12px"><b>${c.address||'Sold Comp'}</b><br>
+      <span style="font-family:monospace;font-size:14px;color:${color}">$${c.ppsf}/SF</span><br>
+      $${c.price.toLocaleString()} · ${c.sqft.toLocaleString()} sf${c.zone?' · '+c.zone:''}${c.date?' · '+c.date:''}</div>`,{maxWidth:250});
+    compPointsLayer.addLayer(cm);
+
+    if(showLabels){
+      const label = L.marker([c.lat,c.lng],{
+        icon: L.divIcon({
+          className:'comp-psf-label',
+          html:'$'+c.ppsf,
+          iconSize:[40,14],
+          iconAnchor:[20,-6]
+        }),
+        interactive:false
+      });
+      compLabelsLayer.addLayer(label);
+    }
+  });
+}
 if(L.esri){
   try {
     fireZoneLayer = L.esri.dynamicMapLayer({
@@ -1118,6 +1190,14 @@ function refreshVisibility(){
   if(compHeatLayer){
     if(layerState.compHeat) compHeatLayer.addTo(map);
     else map.removeLayer(compHeatLayer);
+  }
+  if(layerState.compHeat){
+    compPointsLayer.addTo(map);
+    compLabelsLayer.addTo(map);
+    updateCompPoints();
+  } else {
+    map.removeLayer(compPointsLayer);
+    map.removeLayer(compLabelsLayer);
   }
   if(layerState.listings) listingsLayer.addTo(map);
   else map.removeLayer(listingsLayer);
@@ -1531,6 +1611,9 @@ window.addEventListener('DOMContentLoaded', function(){
           gradient: {0.0:'#1e50b4', 0.15:'#1e88e5', 0.3:'#1ea0b4', 0.45:'#43a047', 0.6:'#b4d232', 0.75:'#f0b41e', 0.88:'#f0641e', 1.0:'#dc2828'}
         });
         document.getElementById('heatCount').textContent = heatPts.length.toLocaleString();
+        compSpatialGrid = buildCompGrid(COMPS);
+        map.on('moveend', updateCompPoints);
+        map.on('zoomend', updateCompPoints);
       }
 
       rebuildMarkers();
