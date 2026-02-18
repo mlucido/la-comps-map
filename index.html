@@ -754,6 +754,7 @@ let parcelLayer = null;
 let floodZoneLayer = null;
 let liquefactionLayer = null;
 let compHeatLayer = null;
+const compCanvasRenderer = L.canvas({padding:0.5});
 let compPointsLayer = L.layerGroup();
 let compLabelsLayer = L.layerGroup();
 let compSpatialGrid = {};  // grid for fast viewport queries
@@ -798,13 +799,16 @@ function updateCompPoints(){
   const bounds = map.getBounds();
   const visible = queryCompGrid(bounds);
   const showLabels = zoom >= 15;
+  // Cap markers to prevent browser freeze at mid-zoom with wide viewport
+  const cap = showLabels ? 2000 : 5000;
+  const toRender = visible.length > cap ? visible.slice(0, cap) : visible;
 
-  visible.forEach(c=>{
+  toRender.forEach(c=>{
     const color = hoodPpsfColor(c.ppsf);
     const r = zoom >= 16 ? 6 : zoom >= 14 ? 4 : 3;
     const cm = L.circleMarker([c.lat,c.lng],{
       radius:r, color:'rgba(255,255,255,0.3)', fillColor:color,
-      fillOpacity:0.85, weight:0.8, renderer:L.canvas()
+      fillOpacity:0.85, weight:0.8, renderer:compCanvasRenderer
     });
     cm.bindPopup(`<div style="font-size:12px"><b>${c.address||'Sold Comp'}</b><br>
       <span style="font-family:monospace;font-size:14px;color:${color}">$${c.ppsf}/SF</span><br>
