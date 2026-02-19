@@ -353,6 +353,40 @@ if os.path.exists(PARCEL_FILE):
 else:
     print(f"\n⚠️  {PARCEL_FILE} not found — run: python3 fetch_parcels.py")
 
+# ── Step 2.6: Stamp ZIMAS real zoning from zoning.json ──
+ZONING_FILE = "zoning.json"
+zimas_stamped = 0
+zimas_upgraded = 0
+zimas_downgraded = 0
+if os.path.exists(ZONING_FILE):
+    print(f"\n🏛️  Step 2.6: Stamping ZIMAS real zoning from {ZONING_FILE}...")
+    with open(ZONING_FILE) as f:
+        zoning_data = json.load(f)
+    print(f"   Loaded {len(zoning_data):,} zoning records")
+
+    for l in listings:
+        key = f"{l['lat']},{l['lng']}"
+        if key in zoning_data:
+            z = zoning_data[key]
+            sb_zone = z.get("sb1123")
+            if sb_zone:
+                l["zimasZone"] = z.get("zoning")       # Raw ZIMAS code (e.g. "R2-1")
+                l["zimasCategory"] = z.get("category")  # Descriptive category
+                old_zone = l["zone"]
+                if old_zone != sb_zone:
+                    if sb_zone in ("R2", "R3", "R4") and old_zone in ("R1", "LAND"):
+                        zimas_upgraded += 1
+                    elif old_zone in ("R2", "R3", "R4") and sb_zone in ("R1", "LAND"):
+                        zimas_downgraded += 1
+                l["zone"] = sb_zone  # Override Redfin guess with ZIMAS truth
+                zimas_stamped += 1
+
+    print(f"   ZIMAS zoning stamped: {zimas_stamped:,}/{len(listings):,}")
+    print(f"   Zone upgrades (R1/LAND→R2+): {zimas_upgraded:,} (more units allowed!)")
+    print(f"   Zone downgrades (R2+→R1/LAND): {zimas_downgraded:,}")
+else:
+    print(f"\n⚠️  {ZONING_FILE} not found — run: python3 fetch_zoning.py")
+
 # ── Step 3: Fire zone check (fallback for listings not stamped from parcels.json) ──
 FIRE_ZONE_FILE = "fire_zones_vhfhsz.geojson"
 already_stamped_fire = sum(1 for l in listings if "fireZone" in l)
