@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Market Analytics | SB 1123 Deal Finder</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="data.js?v=4"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,500;9..40,700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue:#3b82f6; --cyan:#22d3ee; --green:#22c55e;
+    --yellow:#eab308; --orange:#f97316; --red:#ef4444;
+    --r1:#2563eb; --r2:#16a34a; --r3:#ea580c; --r4:#9333ea; --land:#b45309;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'DM Sans',sans-serif; background:#f8fafc; color:#1e293b; min-height:100vh; }
+  .mono { font-family:'JetBrains Mono',monospace; }
+
+  /* Nav */
+  .top-nav { background:#fff; border-bottom:1px solid #e2e8f0; position:sticky; top:0; z-index:40; box-shadow:0 1px 3px rgba(0,0,0,0.05); }
+  .nav-inner { max-width:1400px; margin:0 auto; padding:0 24px; display:flex; align-items:center; justify-content:space-between; height:56px; }
+  .nav-brand { display:flex; align-items:center; gap:12px; }
+  .nav-logo { background:#1e293b; color:#22c55e; padding:4px 10px; border-radius:8px; font-size:15px; font-weight:700; letter-spacing:-0.02em; }
+  .nav-title { font-size:16px; font-weight:700; color:#1e293b; }
+  .nav-subtitle { font-size:11px; color:#64748b; }
+  .nav-back { font-size:13px; color:#64748b; text-decoration:none; padding:6px 14px; border-radius:6px; border:1px solid #e2e8f0; transition:all 0.15s; }
+  .nav-back:hover { color:#1e293b; border-color:#cbd5e1; background:#f1f5f9; }
+
+  /* Layout */
+  .container { max-width:1400px; margin:0 auto; padding:24px; }
+  .grid-main { display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; }
+  .span-2 { grid-column:span 2; }
+  .span-3 { grid-column:span 3; }
+
+  /* Cards */
+  .card { background:#fff; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+  .card-pad { padding:20px; }
+
+  /* KPIs */
+  .kpi-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:16px; margin-bottom:20px; }
+  .kpi { background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:16px 20px; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+  .kpi-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#94a3b8; margin-bottom:6px; }
+  .kpi-value { font-family:'JetBrains Mono',monospace; font-size:26px; font-weight:600; color:#1e293b; }
+  .kpi-sub { font-size:11px; color:#94a3b8; margin-top:2px; }
+
+  /* Filter bar */
+  .filter-bar { background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:14px 20px; display:flex; flex-wrap:wrap; gap:16px; align-items:end; margin-bottom:20px; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+  .filter-group label { display:block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#94a3b8; margin-bottom:4px; }
+  .filter-group select, .filter-group input[type="text"] {
+    background:#f8fafc; border:1px solid #e2e8f0; color:#1e293b; font-size:13px;
+    border-radius:8px; padding:7px 12px; font-family:inherit; outline:none; transition:border 0.15s;
+  }
+  .filter-group select:focus, .filter-group input:focus { border-color:#3b82f6; }
+  .filter-group select { min-width:140px; }
+  .filter-group input[type="text"] { min-width:180px; }
+  .filter-spacer { flex:1; }
+  .btn-reset { font-size:12px; color:#3b82f6; background:none; border:none; cursor:pointer; font-weight:600; font-family:inherit; padding:8px 0; }
+  .btn-reset:hover { color:#1d4ed8; }
+
+  /* Section titles */
+  .section-head { font-size:14px; font-weight:700; color:#1e293b; margin-bottom:12px; }
+  .section-sub { font-size:11px; color:#94a3b8; }
+
+  /* Map */
+  #analyticsMap { width:100%; height:480px; border-radius:12px; z-index:1; }
+  .map-wrap { position:relative; border-radius:12px; overflow:hidden; }
+  .map-legend-overlay {
+    position:absolute; bottom:12px; left:12px; z-index:1000;
+    background:rgba(255,255,255,0.92); backdrop-filter:blur(6px);
+    padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;
+    font-size:11px; color:#64748b; box-shadow:0 2px 8px rgba(0,0,0,0.08);
+  }
+  .legend-item { display:flex; align-items:center; gap:6px; margin-top:3px; }
+  .legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .map-info-overlay {
+    position:absolute; top:12px; right:12px; z-index:1000;
+    background:rgba(255,255,255,0.92); backdrop-filter:blur(6px);
+    padding:8px 14px; border-radius:8px; border:1px solid #e2e8f0;
+    font-size:12px; color:#1e293b; font-weight:600; box-shadow:0 2px 8px rgba(0,0,0,0.08);
+  }
+
+  /* Chart containers */
+  .chart-wrap { position:relative; height:220px; }
+
+  /* Top areas table */
+  .areas-table { width:100%; font-size:12px; border-collapse:collapse; }
+  .areas-table th { text-align:left; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#94a3b8; padding:6px 8px; border-bottom:1px solid #f1f5f9; position:sticky; top:0; background:#fff; }
+  .areas-table td { padding:7px 8px; border-bottom:1px solid #f8fafc; }
+  .areas-table tr:hover td { background:#f8fafc; }
+  .areas-table .area-name { font-weight:600; color:#1e293b; }
+  .areas-table .area-ppsf { font-family:'JetBrains Mono',monospace; font-weight:600; text-align:right; }
+  .areas-table .area-count { font-family:'JetBrains Mono',monospace; color:#94a3b8; text-align:right; font-size:11px; }
+  .areas-scroll { max-height:340px; overflow-y:auto; }
+
+  /* Comps table */
+  .comps-wrap { overflow-x:auto; }
+  .comps-table { width:100%; font-size:12px; border-collapse:collapse; min-width:800px; }
+  .comps-table th {
+    text-align:left; font-size:10px; font-weight:700; text-transform:uppercase;
+    letter-spacing:0.08em; color:#94a3b8; padding:10px 14px;
+    border-bottom:1px solid #e2e8f0; background:#f8fafc; cursor:pointer;
+    user-select:none; position:sticky; top:0; z-index:2;
+  }
+  .comps-table th:hover { color:#64748b; }
+  .comps-table th .sort-arrow { font-size:9px; margin-left:3px; opacity:0.4; }
+  .comps-table th.sorted .sort-arrow { opacity:1; color:#3b82f6; }
+  .comps-table td { padding:9px 14px; border-bottom:1px solid #f1f5f9; }
+  .comps-table tr:hover td { background:#f8fafc; }
+  .comps-table .col-right { text-align:right; }
+  .comps-table .ppsf-cell { font-family:'JetBrains Mono',monospace; font-weight:600; }
+  .zone-badge { font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; display:inline-block; }
+
+  /* Footer */
+  .footer-bar { background:#f8fafc; border-top:1px solid #e2e8f0; padding:10px 14px; font-size:11px; color:#94a3b8; display:flex; justify-content:space-between; align-items:center; border-radius:0 0 12px 12px; }
+  .load-more { font-size:12px; color:#3b82f6; background:none; border:none; cursor:pointer; font-weight:600; font-family:inherit; }
+  .load-more:hover { color:#1d4ed8; }
+
+  /* Loading */
+  .loading-overlay { position:fixed; inset:0; background:rgba(248,250,252,0.95); display:flex; align-items:center; justify-content:center; z-index:9999; flex-direction:column; gap:12px; }
+  .loading-spinner { width:32px; height:32px; border:3px solid #e2e8f0; border-top-color:#3b82f6; border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .loading-text { font-size:14px; color:#64748b; font-weight:500; }
+
+  /* Responsive */
+  @media (max-width:1024px) {
+    .kpi-grid { grid-template-columns:repeat(3,1fr); }
+    .grid-main { grid-template-columns:1fr; }
+    .span-2 { grid-column:span 1; }
+    .span-3 { grid-column:span 1; }
+  }
+  @media (max-width:640px) {
+    .kpi-grid { grid-template-columns:1fr 1fr; }
+    .container { padding:16px; }
+    .filter-bar { flex-direction:column; align-items:stretch; }
+    .nav-inner { padding:0 16px; }
+    #analyticsMap { height:350px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Loading 50K+ sold comps...</div>
+</div>
+
+<!-- Nav -->
+<nav class="top-nav">
+  <div class="nav-inner">
+    <div class="nav-brand">
+      <div class="nav-logo">SB 1123</div>
+      <div>
+        <div class="nav-title">Market Analytics</div>
+        <div class="nav-subtitle">Trailing 12-Month Sold Comps · LA County R1-R4</div>
+      </div>
+    </div>
+    <a href="index.html" class="nav-back">← Back to Deal Finder</a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <!-- KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-label">Median $/SF</div>
+      <div class="kpi-value mono" id="kpiPpsf">—</div>
+      <div class="kpi-sub">across filtered comps</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Total Comps</div>
+      <div class="kpi-value mono" id="kpiCount">—</div>
+      <div class="kpi-sub">closed transactions</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Est. Volume</div>
+      <div class="kpi-value mono" id="kpiVolume">—</div>
+      <div class="kpi-sub">total sold value</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Median Sq Ft</div>
+      <div class="kpi-value mono" id="kpiSqft">—</div>
+      <div class="kpi-sub">building size</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Zones Active</div>
+      <div class="kpi-value mono" id="kpiZones">—</div>
+      <div class="kpi-sub">R1 / R2 / R3 / R4 / LAND</div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filter-bar">
+    <div class="filter-group">
+      <label>Zone / Type</label>
+      <select id="filterZone">
+        <option value="all">All Zones</option>
+        <option value="R1">R1 — Single Family</option>
+        <option value="R2">R2 — Duplex</option>
+        <option value="R3">R3 — Multi-Family</option>
+        <option value="R4">R4 — High Density</option>
+        <option value="LAND">Vacant Land</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Min $/SF</label>
+      <select id="filterMinPpsf">
+        <option value="0">No minimum</option>
+        <option value="400">$400 / SF</option>
+        <option value="500">$500 / SF</option>
+        <option value="600" selected>$600 / SF</option>
+        <option value="700">$700 / SF</option>
+        <option value="800">$800 / SF</option>
+        <option value="1000">$1,000 / SF</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Max $/SF</label>
+      <select id="filterMaxPpsf">
+        <option value="99999" selected>No maximum</option>
+        <option value="800">$800 / SF</option>
+        <option value="1000">$1,000 / SF</option>
+        <option value="1200">$1,200 / SF</option>
+        <option value="1500">$1,500 / SF</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Search Area / Address</label>
+      <input type="text" id="filterSearch" placeholder="e.g. Santa Monica, 90402...">
+    </div>
+    <div class="filter-spacer"></div>
+    <button class="btn-reset" id="btnReset">Reset All</button>
+  </div>
+
+  <!-- Main Grid: Map + Side Panel -->
+  <div class="grid-main" style="margin-bottom:20px">
+
+    <!-- Map -->
+    <div class="span-2 card">
+      <div class="map-wrap">
+        <div id="analyticsMap"></div>
+        <div class="map-legend-overlay">
+          <div style="font-weight:700;color:#1e293b;margin-bottom:4px">Avg $/SF by Zip</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div> < $600</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--cyan)"></div> $600–700</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> $700–800</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div> $800–900</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div> $900–1,000</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div> $1,000+</div>
+        </div>
+        <div class="map-info-overlay" id="mapInfo">Click a bubble to filter</div>
+      </div>
+    </div>
+
+    <!-- Side Panel -->
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <!-- $/SF Distribution -->
+      <div class="card card-pad" style="flex:1">
+        <div class="section-head">$/SF Distribution</div>
+        <div class="chart-wrap">
+          <canvas id="distChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Zone Comparison -->
+      <div class="card card-pad" style="flex:1">
+        <div class="section-head">Median $/SF by Zone</div>
+        <div class="chart-wrap">
+          <canvas id="zoneChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Second Row: Top Areas + another chart -->
+  <div class="grid-main" style="margin-bottom:20px">
+    <!-- Top Submarkets -->
+    <div class="card card-pad">
+      <div class="section-head">Top Submarkets <span class="section-sub" id="areaCountLabel"></span></div>
+      <div class="areas-scroll">
+        <table class="areas-table">
+          <thead><tr><th>Area</th><th style="text-align:right">Avg $/SF</th><th style="text-align:right">Count</th></tr></thead>
+          <tbody id="areasBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Comps Table -->
+    <div class="span-2 card">
+      <div class="comps-wrap" style="max-height:460px;overflow-y:auto">
+        <table class="comps-table">
+          <thead>
+            <tr>
+              <th data-key="address">Address <span class="sort-arrow">▲</span></th>
+              <th data-key="area">Submarket <span class="sort-arrow">▲</span></th>
+              <th data-key="zone">Zone <span class="sort-arrow">▲</span></th>
+              <th data-key="price" class="col-right">Price <span class="sort-arrow">▲</span></th>
+              <th data-key="sqft" class="col-right">Sq Ft <span class="sort-arrow">▲</span></th>
+              <th data-key="ppsf" class="col-right">$/SF <span class="sort-arrow">▲</span></th>
+              <th data-key="yb" class="col-right">Year <span class="sort-arrow">▲</span></th>
+              <th data-key="date" class="col-right">Date <span class="sort-arrow">▲</span></th>
+            </tr>
+          </thead>
+          <tbody id="compsBody"></tbody>
+        </table>
+      </div>
+      <div class="footer-bar">
+        <span id="compsShowing">0 of 0</span>
+        <button class="load-more" id="btnLoadMore" style="display:none">Load 100 more</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── ZIP → Submarket Mapping ───
+const ZIP_NAMES = {
+  '90001':'Florence','90002':'Watts','90003':'South LA','90004':'Los Feliz','90005':'Koreatown',
+  '90006':'Koreatown','90007':'South LA','90008':'Baldwin Hills','90010':'Mid-Wilshire',
+  '90011':'South LA','90012':'DTLA','90013':'DTLA','90014':'DTLA','90015':'DTLA',
+  '90016':'West Adams','90017':'DTLA','90018':'West Adams','90019':'Mid-City',
+  '90020':'Koreatown','90021':'DTLA','90022':'East LA','90023':'East LA',
+  '90024':'Westwood','90025':'West LA','90026':'Echo Park','90027':'Los Feliz',
+  '90028':'Hollywood','90029':'Silver Lake','90031':'Lincoln Heights','90032':'El Sereno',
+  '90033':'Boyle Heights','90034':'Palms','90035':'Beverlywood','90036':'Miracle Mile',
+  '90037':'South LA','90038':'Hollywood','90039':'Silver Lake','90040':'Huntington Park',
+  '90041':'Eagle Rock','90042':'Highland Park','90043':'View Park','90044':'South LA',
+  '90045':'Westchester','90046':'Hollywood Hills','90047':'South LA','90048':'Beverly Grove',
+  '90049':'Brentwood','90056':'Ladera Heights','90057':'Westlake',
+  '90058':'Vernon','90059':'South LA','90061':'South LA','90062':'South LA',
+  '90063':'East LA','90064':'Rancho Park','90065':'Glassell Park','90066':'Mar Vista',
+  '90067':'Century City','90068':'Hollywood Hills','90069':'West Hollywood',
+  '90071':'DTLA','90077':'Bel Air','90094':'Playa Vista','90095':'Westwood',
+  '90210':'Beverly Hills','90211':'Beverly Hills','90212':'Beverly Hills',
+  '90220':'Compton','90221':'Compton','90222':'Compton','90230':'Culver City',
+  '90232':'Culver City','90240':'Downey','90241':'Downey','90242':'Downey',
+  '90245':'El Segundo','90247':'Gardena','90248':'Gardena','90249':'Gardena',
+  '90250':'Hawthorne','90254':'Hermosa Beach','90255':'Huntington Park',
+  '90260':'Lawndale','90262':'Lynwood','90265':'Malibu',
+  '90266':'Manhattan Beach','90270':'Maywood',
+  '90272':'Pacific Palisades','90274':'Palos Verdes','90275':'Rancho Palos Verdes',
+  '90277':'Redondo Beach','90278':'Redondo Beach','90280':'South Gate',
+  '90290':'Topanga','90291':'Venice','90292':'Marina del Rey','90293':'Playa del Rey',
+  '90301':'Inglewood','90302':'Inglewood','90303':'Inglewood','90304':'Inglewood',
+  '90305':'Ladera Heights',
+  '90401':'Santa Monica','90402':'Santa Monica','90403':'Santa Monica','90404':'Santa Monica','90405':'Santa Monica',
+  '90501':'Torrance','90502':'Torrance','90503':'Torrance','90504':'Torrance','90505':'Torrance',
+  '90601':'Whittier','90602':'Whittier','90603':'Whittier','90604':'Whittier',
+  '90606':'Whittier','90620':'Buena Park','90621':'Buena Park',
+  '90630':'Cypress','90631':'La Habra','90638':'La Mirada',
+  '90640':'Montebello','90650':'Norwalk',
+  '90660':'Pico Rivera','90670':'Santa Fe Springs',
+  '90680':'Stanton',
+  '90701':'Artesia','90703':'Cerritos','90706':'Bellflower','90710':'San Pedro',
+  '90712':'Lakewood','90713':'Lakewood','90715':'Lakewood',
+  '90716':'Hawaiian Gardens','90717':'Lomita',
+  '90731':'San Pedro','90732':'San Pedro',
+  '90740':'Seal Beach','90742':'Sunset Beach','90743':'Surfside',
+  '90744':'Wilmington','90745':'Carson','90746':'Carson','90747':'Carson',
+  '90755':'Signal Hill',
+  '90802':'Long Beach','90803':'Long Beach','90804':'Long Beach','90806':'Long Beach',
+  '90807':'Long Beach','90808':'Long Beach','90810':'Long Beach','90813':'Long Beach',
+  '90814':'Long Beach','90815':'Long Beach',
+  '91001':'Altadena','91006':'Arcadia','91007':'Arcadia','91010':'Duarte',
+  '91011':'La Canada','91016':'Monrovia','91020':'Montrose',
+  '91024':'Sierra Madre','91030':'South Pasadena',
+  '91040':'Sunland','91042':'Tujunga',
+  '91101':'Pasadena','91103':'Pasadena','91104':'Pasadena','91105':'Pasadena',
+  '91106':'Pasadena','91107':'Pasadena','91108':'San Marino',
+  '91201':'Glendale','91202':'Glendale','91203':'Glendale','91204':'Glendale',
+  '91205':'Glendale','91206':'Glendale','91207':'Glendale','91208':'Glendale',
+  '91214':'La Crescenta',
+  '91301':'Calabasas','91302':'Calabasas','91303':'Canoga Park',
+  '91304':'Canoga Park','91306':'Winnetka','91307':'West Hills',
+  '91311':'Chatsworth','91316':'Encino','91324':'Northridge',
+  '91325':'Northridge','91326':'Porter Ranch','91331':'Pacoima',
+  '91335':'Reseda','91340':'San Fernando','91342':'Sylmar',
+  '91343':'North Hills','91344':'Granada Hills','91345':'Mission Hills',
+  '91352':'Sun Valley','91356':'Tarzana',
+  '91364':'Woodland Hills','91367':'Woodland Hills',
+  '91401':'Van Nuys','91402':'Panorama City','91403':'Sherman Oaks',
+  '91405':'Van Nuys','91406':'Van Nuys','91411':'Van Nuys',
+  '91423':'Sherman Oaks','91436':'Encino',
+  '91501':'Burbank','91502':'Burbank','91504':'Burbank','91505':'Burbank','91506':'Burbank',
+  '91601':'North Hollywood','91602':'North Hollywood','91604':'Studio City',
+  '91605':'North Hollywood','91606':'North Hollywood','91607':'Valley Village',
+};
+
+const ZONE_COLORS = { R1:'#2563eb', R2:'#16a34a', R3:'#ea580c', R4:'#9333ea', LAND:'#b45309' };
+
+function ppsfColor(v) {
+  if (!v || v <= 0) return '#94a3b8';
+  if (v < 600) return '#3b82f6';
+  if (v < 700) return '#22d3ee';
+  if (v < 800) return '#22c55e';
+  if (v < 900) return '#eab308';
+  if (v < 1000) return '#f97316';
+  return '#ef4444';
+}
+
+function fmt$(n) { return '$' + Math.round(n).toLocaleString(); }
+function fmtM$(n) { return '$' + (n/1e6).toFixed(1) + 'B'; }
+
+function median(arr) {
+  if (!arr.length) return 0;
+  const s = arr.slice().sort((a,b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m-1] + s[m]) / 2;
+}
+
+function getArea(comp) {
+  return ZIP_NAMES[comp.zip] || comp.zip || 'Unknown';
+}
+
+// ─── State ───
+let allComps = [];
+let state = { zone:'all', minPpsf:600, maxPpsf:99999, search:'', selectedArea:null };
+let tableSort = { key:'ppsf', dir:'desc' };
+let tableLimit = 100;
+
+// ─── Chart Instances ───
+let distChartInstance = null;
+let zoneChartInstance = null;
+
+// ─── Leaflet ───
+let map = null;
+let bubbleLayer = null;
+
+// ─── Init ───
+function init() {
+  allComps = LOADED_COMPS.filter(c => c.ppsf > 0 && c.sqft > 0 && c.lat && c.lng);
+
+  // Init map
+  map = L.map('analyticsMap', { center:[34.05,-118.35], zoom:10, zoomControl:true });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution:'&copy; OSM &copy; CARTO', maxZoom:18
+  }).addTo(map);
+  bubbleLayer = L.layerGroup().addTo(map);
+
+  // Wire filters
+  document.getElementById('filterZone').addEventListener('change', e => { state.zone = e.target.value; update(); });
+  document.getElementById('filterMinPpsf').addEventListener('change', e => { state.minPpsf = +e.target.value; update(); });
+  document.getElementById('filterMaxPpsf').addEventListener('change', e => { state.maxPpsf = +e.target.value; update(); });
+  document.getElementById('filterSearch').addEventListener('input', e => { state.search = e.target.value.toLowerCase(); update(); });
+  document.getElementById('btnReset').addEventListener('click', resetAll);
+  document.getElementById('btnLoadMore').addEventListener('click', () => { tableLimit += 100; renderTable(getFiltered()); });
+
+  // Wire table sort
+  document.querySelectorAll('.comps-table th[data-key]').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.key;
+      if (tableSort.key === key) tableSort.dir = tableSort.dir === 'desc' ? 'asc' : 'desc';
+      else { tableSort.key = key; tableSort.dir = 'desc'; }
+      renderTable(getFiltered());
+    });
+  });
+
+  // Hide loading
+  document.getElementById('loadingOverlay').style.display = 'none';
+  update();
+}
+
+function resetAll() {
+  state = { zone:'all', minPpsf:600, maxPpsf:99999, search:'', selectedArea:null };
+  document.getElementById('filterZone').value = 'all';
+  document.getElementById('filterMinPpsf').value = '600';
+  document.getElementById('filterMaxPpsf').value = '99999';
+  document.getElementById('filterSearch').value = '';
+  document.getElementById('mapInfo').textContent = 'Click a bubble to filter';
+  tableLimit = 100;
+  update();
+}
+
+function getFiltered() {
+  return allComps.filter(c => {
+    if (state.zone !== 'all' && c.zone !== state.zone) return false;
+    if (c.ppsf < state.minPpsf) return false;
+    if (c.ppsf > state.maxPpsf) return false;
+    if (state.search) {
+      const area = getArea(c).toLowerCase();
+      const addr = (c.address || '').toLowerCase();
+      const zip = c.zip || '';
+      if (!area.includes(state.search) && !addr.includes(state.search) && !zip.includes(state.search)) return false;
+    }
+    if (state.selectedArea && getArea(c) !== state.selectedArea) return false;
+    return true;
+  });
+}
+
+function update() {
+  const data = getFiltered();
+  updateKPIs(data);
+  updateMap(data);
+  updateDistChart(data);
+  updateZoneChart(data);
+  updateAreas(data);
+  renderTable(data);
+}
+
+// ─── KPIs ───
+function updateKPIs(data) {
+  const ppsfArr = data.map(c => c.ppsf);
+  const sqftArr = data.map(c => c.sqft);
+  const vol = data.reduce((s, c) => s + c.price, 0);
+  const zones = new Set(data.map(c => c.zone));
+
+  document.getElementById('kpiPpsf').textContent = data.length ? fmt$(median(ppsfArr)) : '—';
+  document.getElementById('kpiCount').textContent = data.length.toLocaleString();
+  document.getElementById('kpiVolume').textContent = data.length ? fmtM$(vol) : '—';
+  document.getElementById('kpiSqft').textContent = data.length ? Math.round(median(sqftArr)).toLocaleString() : '—';
+  document.getElementById('kpiZones').textContent = zones.size;
+}
+
+// ─── Map ───
+function updateMap(data) {
+  bubbleLayer.clearLayers();
+
+  // Aggregate by zip
+  const zipStats = {};
+  // Use all comps matching zone/ppsf filters but NOT area filter for map display
+  const mapData = allComps.filter(c => {
+    if (state.zone !== 'all' && c.zone !== state.zone) return false;
+    if (c.ppsf < state.minPpsf || c.ppsf > state.maxPpsf) return false;
+    if (state.search) {
+      const area = getArea(c).toLowerCase();
+      const addr = (c.address || '').toLowerCase();
+      const zip = c.zip || '';
+      if (!area.includes(state.search) && !addr.includes(state.search) && !zip.includes(state.search)) return false;
+    }
+    return true;
+  });
+
+  mapData.forEach(c => {
+    const zip = c.zip || 'unknown';
+    if (!zipStats[zip]) zipStats[zip] = { lat:0, lng:0, sumPpsf:0, count:0, area:getArea(c) };
+    const s = zipStats[zip];
+    s.lat += c.lat; s.lng += c.lng; s.sumPpsf += c.ppsf; s.count++;
+  });
+
+  Object.keys(zipStats).forEach(zip => {
+    const s = zipStats[zip];
+    const lat = s.lat / s.count;
+    const lng = s.lng / s.count;
+    const avgPpsf = s.sumPpsf / s.count;
+    const radius = Math.max(6, Math.min(Math.sqrt(s.count) * 2.5, 35));
+    const isSelected = state.selectedArea === s.area;
+    const isDimmed = state.selectedArea && !isSelected;
+
+    const circle = L.circleMarker([lat, lng], {
+      radius: radius,
+      fillColor: ppsfColor(avgPpsf),
+      color: isSelected ? '#1e293b' : '#fff',
+      weight: isSelected ? 3 : 1.5,
+      fillOpacity: isDimmed ? 0.15 : 0.8,
+      opacity: isDimmed ? 0.3 : 1,
+    });
+
+    circle.bindTooltip(
+      `<b>${s.area}</b> (${zip})<br>Avg: ${fmt$(avgPpsf)}/SF<br>${s.count} sales`,
+      { direction:'top', offset:[0,-8] }
+    );
+
+    circle.on('click', () => {
+      state.selectedArea = (state.selectedArea === s.area) ? null : s.area;
+      document.getElementById('mapInfo').textContent = state.selectedArea
+        ? `Filtered: ${state.selectedArea} — click again to clear`
+        : 'Click a bubble to filter';
+      update();
+    });
+
+    bubbleLayer.addLayer(circle);
+  });
+}
+
+// ─── Distribution Chart ───
+function updateDistChart(data) {
+  const ctx = document.getElementById('distChart').getContext('2d');
+  const buckets = { '<$400':0, '$400–600':0, '$600–800':0, '$800–1K':0, '$1K–1.2K':0, '$1.2K+':0 };
+  const colors = ['#94a3b8','#3b82f6','#22c55e','#eab308','#f97316','#ef4444'];
+
+  data.forEach(c => {
+    if (c.ppsf < 400) buckets['<$400']++;
+    else if (c.ppsf < 600) buckets['$400–600']++;
+    else if (c.ppsf < 800) buckets['$600–800']++;
+    else if (c.ppsf < 1000) buckets['$800–1K']++;
+    else if (c.ppsf < 1200) buckets['$1K–1.2K']++;
+    else buckets['$1.2K+']++;
+  });
+
+  const cfg = {
+    type:'bar',
+    data:{
+      labels:Object.keys(buckets),
+      datasets:[{ data:Object.values(buckets), backgroundColor:colors, borderRadius:4 }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        y:{ beginAtZero:true, grid:{ drawBorder:false }, ticks:{ font:{ size:10, family:'JetBrains Mono' } } },
+        x:{ grid:{ display:false }, ticks:{ font:{ size:10 } } }
+      }
+    }
+  };
+
+  if (distChartInstance) {
+    distChartInstance.data.datasets[0].data = Object.values(buckets);
+    distChartInstance.update();
+  } else {
+    distChartInstance = new Chart(ctx, cfg);
+  }
+}
+
+// ─── Zone Chart ───
+function updateZoneChart(data) {
+  const ctx = document.getElementById('zoneChart').getContext('2d');
+  const zones = ['R1','R2','R3','R4','LAND'];
+  const medians = zones.map(z => {
+    const arr = data.filter(c => c.zone === z).map(c => c.ppsf);
+    return arr.length ? Math.round(median(arr)) : 0;
+  });
+  const counts = zones.map(z => data.filter(c => c.zone === z).length);
+  const zColors = zones.map(z => ZONE_COLORS[z]);
+
+  const cfg = {
+    type:'bar',
+    data:{
+      labels:zones.map((z,i) => `${z} (${counts[i].toLocaleString()})`),
+      datasets:[{ data:medians, backgroundColor:zColors, borderRadius:4 }]
+    },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false },
+        tooltip:{ callbacks:{ label: ctx => fmt$(ctx.raw) + '/SF' } }
+      },
+      scales:{
+        x:{ beginAtZero:true, grid:{ drawBorder:false }, ticks:{ font:{ size:10, family:'JetBrains Mono' }, callback:v => '$'+v } },
+        y:{ grid:{ display:false }, ticks:{ font:{ size:11, weight:'bold' } } }
+      }
+    }
+  };
+
+  if (zoneChartInstance) {
+    zoneChartInstance.data.labels = zones.map((z,i) => `${z} (${counts[i].toLocaleString()})`);
+    zoneChartInstance.data.datasets[0].data = medians;
+    zoneChartInstance.update();
+  } else {
+    zoneChartInstance = new Chart(ctx, cfg);
+  }
+}
+
+// ─── Top Areas ───
+function updateAreas(data) {
+  const areaMap = {};
+  data.forEach(c => {
+    const a = getArea(c);
+    if (!areaMap[a]) areaMap[a] = { sumPpsf:0, count:0 };
+    areaMap[a].sumPpsf += c.ppsf;
+    areaMap[a].count++;
+  });
+
+  const sorted = Object.entries(areaMap)
+    .map(([name,s]) => ({ name, avg:Math.round(s.sumPpsf/s.count), count:s.count }))
+    .filter(a => a.count >= 3) // minimum 3 comps to rank
+    .sort((a,b) => b.avg - a.avg);
+
+  document.getElementById('areaCountLabel').textContent = `(${sorted.length} areas with 3+ comps)`;
+
+  const tbody = document.getElementById('areasBody');
+  tbody.innerHTML = '';
+  sorted.forEach((a,i) => {
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.addEventListener('click', () => {
+      state.selectedArea = (state.selectedArea === a.name) ? null : a.name;
+      document.getElementById('mapInfo').textContent = state.selectedArea
+        ? `Filtered: ${state.selectedArea} — click to clear`
+        : 'Click a bubble to filter';
+      update();
+    });
+    if (state.selectedArea === a.name) tr.style.background = '#f0f9ff';
+    tr.innerHTML = `
+      <td class="area-name">${i+1}. ${a.name}</td>
+      <td class="area-ppsf" style="color:${ppsfColor(a.avg)}">${fmt$(a.avg)}</td>
+      <td class="area-count">${a.count}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ─── Comps Table ───
+function renderTable(data) {
+  // Sort
+  const key = tableSort.key;
+  const dir = tableSort.dir === 'desc' ? -1 : 1;
+  const sorted = data.slice().sort((a,b) => {
+    let va = key === 'area' ? getArea(a) : key === 'address' ? (a.address||'') : (a[key]||0);
+    let vb = key === 'area' ? getArea(b) : key === 'address' ? (b.address||'') : (b[key]||0);
+    if (typeof va === 'string') return dir * va.localeCompare(vb);
+    return dir * (va - vb);
+  });
+
+  const display = sorted.slice(0, tableLimit);
+
+  // Update sort arrows
+  document.querySelectorAll('.comps-table th[data-key]').forEach(th => {
+    th.classList.toggle('sorted', th.dataset.key === key);
+    const arrow = th.querySelector('.sort-arrow');
+    if (th.dataset.key === key) arrow.textContent = tableSort.dir === 'desc' ? '▼' : '▲';
+    else arrow.textContent = '▲';
+  });
+
+  const tbody = document.getElementById('compsBody');
+  tbody.innerHTML = '';
+
+  display.forEach(c => {
+    const tr = document.createElement('tr');
+    const zoneColor = ZONE_COLORS[c.zone] || '#94a3b8';
+    tr.innerHTML = `
+      <td style="font-weight:500;color:#1e293b;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.address || '—'}</td>
+      <td>${getArea(c)}</td>
+      <td><span class="zone-badge" style="background:${zoneColor}15;color:${zoneColor}">${c.zone}</span></td>
+      <td class="col-right" style="font-family:'JetBrains Mono',monospace">${fmt$(c.price)}</td>
+      <td class="col-right" style="font-family:'JetBrains Mono',monospace">${c.sqft.toLocaleString()}</td>
+      <td class="col-right ppsf-cell" style="color:${ppsfColor(c.ppsf)}">${fmt$(c.ppsf)}</td>
+      <td class="col-right" style="color:#94a3b8">${c.yb || '—'}</td>
+      <td class="col-right" style="color:#94a3b8;font-size:11px">${c.date || '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('compsShowing').textContent = `Showing ${display.length.toLocaleString()} of ${data.length.toLocaleString()} comps`;
+  document.getElementById('btnLoadMore').style.display = display.length < data.length ? 'inline' : 'none';
+}
+
+// ─── Boot ───
+window.addEventListener('load', () => {
+  if (typeof LOADED_COMPS === 'undefined' || !LOADED_COMPS.length) {
+    document.getElementById('loadingOverlay').innerHTML = '<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:#1e293b;margin-bottom:8px">No data loaded</div><div style="color:#64748b">data.js not found or empty. <a href="index.html" style="color:#3b82f6">Return to Deal Finder</a></div></div>';
+    return;
+  }
+  init();
+});
+</script>
+</body>
+</html>

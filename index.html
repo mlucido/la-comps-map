@@ -299,6 +299,12 @@ window.LOADED_LISTINGS = window.LOADED_LISTINGS || [];
     cursor:pointer;transition:all 0.15s;white-space:nowrap;
   }
   .refresh-btn:hover{background:rgba(34,197,94,0.2)}
+  .analytics-btn{
+    padding:4px 10px;background:rgba(96,165,250,0.1);border:1px solid var(--accent);
+    border-radius:4px;color:var(--accent);font-family:inherit;font-size:10px;
+    cursor:pointer;transition:all 0.15s;white-space:nowrap;text-decoration:none;
+  }
+  .analytics-btn:hover{background:rgba(96,165,250,0.2)}
 
   /* Favorites */
   .listings-table .col-fav{width:32px;text-align:center;cursor:pointer}
@@ -372,6 +378,7 @@ window.LOADED_LISTINGS = window.LOADED_LISTINGS || [];
     }
 
     .sidebar-header .refresh-btn { display: none; }
+    .sidebar-header .analytics-btn { display: none; }
 
     /* Stats grid: 2 columns */
     .stats-grid { grid-template-columns: 1fr 1fr; }
@@ -563,6 +570,7 @@ window.LOADED_LISTINGS = window.LOADED_LISTINGS || [];
   <div class="sidebar-header">
     <div style="display:flex;align-items:center;justify-content:space-between">
       <h1><span>SB 1123</span> Deal Finder</h1>
+      <a href="analytics.html" class="analytics-btn" title="Market Analytics Dashboard">&#9632; Analytics</a>
       <button class="refresh-btn" onclick="copyRefreshCmd()" title="Copy refresh command to clipboard">&#8635; Refresh</button>
     </div>
     <p>Find townhome subdivision sites in LA County<br>12K-40K SF lots that split into up to 10 contiguous units</p>
@@ -745,9 +753,12 @@ window.LOADED_LISTINGS = window.LOADED_LISTINGS || [];
     <div class="section-title" onclick="toggleSection(this)">Map Layers <span class="chevron">▼</span></div>
     <div class="section-content">
       <button class="layer-btn" data-layer="markers" onclick="toggleLayer('markers',this)"><span class="icon">o</span> Comp Pins <span class="layer-count" id="compCount"></span></button>
-      <button class="layer-btn" data-layer="compHeat" onclick="toggleLayer('compHeat',this)"><span class="icon" style="color:#f0641e">&#9608;</span> $/SF Heatmap <span class="layer-count" id="heatCount"></span></button>
+      <button class="layer-btn" data-layer="compHeat" onclick="toggleLayer('compHeat',this)"><span class="icon" style="color:#f0641e">&#9608;</span> Exit $/SF Heatmap <span class="layer-count" id="heatCount"></span></button>
+      <button class="layer-btn" data-layer="spreadHeat" onclick="toggleLayer('spreadHeat',this)"><span class="icon" style="color:#22c55e">&#9608;</span> Spread Heatmap <span class="layer-count" id="spreadCount"></span></button>
+      <button class="layer-btn" data-layer="neighborhoods" onclick="toggleLayer('neighborhoods',this)"><span class="icon" style="color:#8b5cf6">&#9632;</span> Neighborhoods <span class="layer-count" id="neighborhoodCount"></span></button>
       <button class="layer-btn" data-layer="btr" onclick="toggleLayer('btr',this)"><span class="icon" style="color:#f59e0b">&#9670;</span> BTR Opportunities <span class="layer-count" id="btrCount"></span></button>
       <button class="layer-btn active" data-layer="listings" onclick="toggleLayer('listings',this)"><span class="icon">*</span> Active Listings <span class="layer-count" id="listingCount"></span></button>
+      <button class="layer-btn" data-layer="offMarket" onclick="toggleLayer('offMarket',this)"><span class="icon" style="color:#a0a0a0">&#9678;</span> Off-Market <span class="layer-count" id="offMarketCount"></span></button>
       <button class="layer-btn" data-layer="fireZones" onclick="toggleLayer('fireZones',this)"><span class="icon" style="color:#ef4444">!</span> Fire Hazard Zones</button>
       <button class="layer-btn" data-layer="floodZones" onclick="toggleLayer('floodZones',this)"><span class="icon" style="color:#3b82f6">~</span> Flood Zones (FEMA)</button>
       <button class="layer-btn" data-layer="liquefaction" onclick="toggleLayer('liquefaction',this)"><span class="icon" style="color:#a855f7">&#9632;</span> Liquefaction Zones</button>
@@ -888,7 +899,10 @@ let LISTINGS = [];
 const markerLayers = {R1:L.layerGroup(),R2:L.layerGroup(),R3:L.layerGroup(),R4:L.layerGroup(),LAND:L.layerGroup()};
 const listingsLayer = L.layerGroup();
 const btrLayer = L.layerGroup();  // BTR opportunity layer
-const layerState = {markers:false,compHeat:false,listings:true,btr:false,fireZones:false,floodZones:false,liquefaction:false,parcels:true};
+const offMarketLayer = L.layerGroup();  // Priority 4: Off-market targets
+const neighborhoodLayer = L.layerGroup();  // Priority 3: Neighborhood opportunity scorer
+let spreadHeatLayer = null;  // Priority 2: Spread heatmap
+const layerState = {markers:false,compHeat:false,spreadHeat:false,neighborhoods:false,listings:true,offMarket:false,btr:false,fireZones:false,floodZones:false,liquefaction:false,parcels:true};
 const zoneState = {R1:true,R2:false,R3:false,R4:false,LAND:false};
 let sb1123Mode = true;  // Default ON — we only care about 1123 deals
 
@@ -1296,6 +1310,7 @@ function enrichListings(){
     l.guaranteedFAR = pf.guaranteedFAR;
     l.buildableSf = pf.buildableSf;
     l.landPpsf = l.lotSf ? Math.round(l.price / l.lotSf) : null;
+    l.lotEfficiency = pf.lot_efficiency ? Math.round(pf.lot_efficiency * 100) : 0; // Store as percentage
     // NEW listing detection: DOM <= 3 = NEW, DOM <= 7 = new this week
     l.isNew = (l.dom !== null && l.dom !== undefined && l.dom <= 3) ? 1 : 0;
     l.isNewThisWeek = (l.dom !== null && l.dom !== undefined && l.dom <= 7) ? 1 : 0;
@@ -1624,6 +1639,240 @@ function buildBTRLayer(){
   if (btrCountEl) btrCountEl.textContent = btrListings.length.toLocaleString();
 }
 
+// ══════════════════════════════════════════
+//  PRIORITY 2: SPREAD HEATMAP
+// ══════════════════════════════════════════
+
+function buildSpreadHeatmap(){
+  if(!LISTINGS.length || typeof L.heatLayer !== 'function') return;
+  
+  const BUILD_COST_PSF = proforma.buildCostPerSf || 350;
+  
+  // Calculate spread for each eligible listing
+  const heatPts = LISTINGS.filter(l => {
+    if(!l.sb1123Eligible) return false;
+    const exitPsf = l.newconPpsf || l.hoodPpsf || l.ppsf || 0;
+    const landBasisPsf = l.lotSf ? l.price / l.lotSf : 0;
+    return exitPsf > 0 && landBasisPsf > 0;
+  }).map(l => {
+    const exitPsf = l.newconPpsf || l.hoodPpsf || l.ppsf;
+    const landBasisPsf = l.lotSf ? l.price / l.lotSf : 0;
+    const spread = exitPsf - landBasisPsf - BUILD_COST_PSF;
+    
+    // Normalize to 0-1 intensity: ≥$300=1.0, <$0=0.0
+    const intensity = Math.max(0, Math.min(1, (spread + 100) / 400)); // -100 to 300 range
+    return [l.lat, l.lng, intensity];
+  });
+  
+  spreadHeatLayer = L.heatLayer(heatPts, {
+    radius: 25,
+    blur: 15,
+    maxZoom: 17,
+    max: 1.0,
+    minOpacity: 0.25,
+    pane: 'heatmapPane',
+    gradient: {
+      0.0:  '#ef4444',  // <$0 — red (negative spread)
+      0.25: '#f97316',  // $0-100 — orange
+      0.50: '#eab308',  // $100-200 — yellow
+      0.75: '#22c55e',  // $200-300 — green
+      1.0:  '#059669'   // ≥$300 — deep green (maximum spread)
+    }
+  });
+  
+  document.getElementById('spreadCount').textContent = heatPts.length.toLocaleString();
+}
+
+// ══════════════════════════════════════════
+//  PRIORITY 3: NEIGHBORHOOD OPPORTUNITY SCORER
+// ══════════════════════════════════════════
+
+function buildNeighborhoodLayer(){
+  neighborhoodLayer.clearLayers();
+  
+  // Grid cell size (0.01° ≈ 1km)
+  const CELL_SIZE = 0.01;
+  
+  // Group listings by neighborhood grid cell
+  const cells = {};
+  LISTINGS.forEach(l => {
+    if(!l.sb1123Eligible) return;
+    const cellLat = Math.floor(l.lat / CELL_SIZE) * CELL_SIZE;
+    const cellLng = Math.floor(l.lng / CELL_SIZE) * CELL_SIZE;
+    const key = `${cellLat},${cellLng}`;
+    if(!cells[key]) cells[key] = {lat:cellLat, lng:cellLng, listings:[]};
+    cells[key].listings.push(l);
+  });
+  
+  const BUILD_COST_PSF = proforma.buildCostPerSf || 350;
+  
+  // Calculate scores for each cell
+  Object.values(cells).forEach(cell => {
+    const listings = cell.listings;
+    
+    // Calculate metrics
+    const avgExitPsf = listings.reduce((sum,l)=> sum + (l.newconPpsf || l.hoodPpsf || l.ppsf || 0), 0) / listings.length;
+    const avgLandBasis = listings.reduce((sum,l)=> sum + (l.lotSf ? l.price / l.lotSf : 0), 0) / listings.length;
+    const avgSpread = avgExitPsf - avgLandBasis - BUILD_COST_PSF;
+    const dealFlowDepth = listings.length;
+    const avgLotSize = listings.reduce((sum,l)=> sum + (l.lotSf||0), 0) / listings.length;
+    const avgEfficiency = listings.reduce((sum,l)=> sum + (l.lotEfficiency||0), 0) / listings.length;
+    const avgDOM = listings.reduce((sum,l)=> sum + (l.dom||0), 0) / listings.length;
+    const avgSlope = listings.reduce((sum,l)=> sum + (l.slope||0), 0) / listings.length;
+    
+    // Normalize and weight factors (0-100 scale)
+    const spreadScore = Math.max(0, Math.min(100, (avgSpread / 300) * 100));
+    const flowScore = Math.max(0, Math.min(100, (dealFlowDepth / 20) * 100));
+    const effScore = Math.max(0, Math.min(100, avgEfficiency));
+    const domScore = Math.max(0, Math.min(100, Math.min(avgDOM, 120) / 120 * 100));
+    const slopeScore = Math.max(0, Math.min(100, (1 - Math.min(avgSlope, 25) / 25) * 100));
+    
+    // Composite score
+    const compositeScore = 
+      spreadScore * 0.35 + 
+      flowScore * 0.25 + 
+      effScore * 0.20 + 
+      domScore * 0.10 + 
+      slopeScore * 0.10;
+    
+    // Letter grade
+    let grade = 'F';
+    if(compositeScore >= 80) grade = 'A';
+    else if(compositeScore >= 60) grade = 'B';
+    else if(compositeScore >= 40) grade = 'C';
+    else if(compositeScore >= 20) grade = 'D';
+    
+    // Color
+    let color, fillOpacity;
+    if(compositeScore >= 80) { color = '#059669'; fillOpacity = 0.4; }
+    else if(compositeScore >= 60) { color = '#22c55e'; fillOpacity = 0.35; }
+    else if(compositeScore >= 40) { color = '#eab308'; fillOpacity = 0.3; }
+    else if(compositeScore >= 20) { color = '#f97316'; fillOpacity = 0.25; }
+    else { color = '#ef4444'; fillOpacity = 0.2; }
+    
+    // Create polygon for cell
+    const bounds = [
+      [cell.lat, cell.lng],
+      [cell.lat + CELL_SIZE, cell.lng],
+      [cell.lat + CELL_SIZE, cell.lng + CELL_SIZE],
+      [cell.lat, cell.lng + CELL_SIZE]
+    ];
+    
+    const polygon = L.polygon(bounds, {
+      color: color,
+      fillColor: color,
+      fillOpacity: fillOpacity,
+      weight: 1,
+      opacity: 0.7
+    });
+    
+    // Tooltip with breakdown
+    polygon.bindTooltip(`
+      <div style="font-size:12px;font-weight:700;margin-bottom:4px;color:${color}">Grade ${grade} (${compositeScore.toFixed(0)}/100)</div>
+      <div style="font-size:10px;line-height:1.5">
+        <div><strong>Exit $/SF:</strong> $${avgExitPsf.toFixed(0)}</div>
+        <div><strong>Land Basis:</strong> $${avgLandBasis.toFixed(0)}/SF</div>
+        <div><strong>Spread:</strong> $${avgSpread.toFixed(0)}/SF</div>
+        <div><strong>Eligible Parcels:</strong> ${dealFlowDepth}</div>
+        <div><strong>Avg Lot Size:</strong> ${avgLotSize.toLocaleString()} SF</div>
+        <div><strong>Lot Efficiency:</strong> ${avgEfficiency.toFixed(0)}%</div>
+        <div><strong>Avg DOM:</strong> ${avgDOM.toFixed(0)} days</div>
+        <div><strong>Avg Slope:</strong> ${avgSlope.toFixed(1)}%</div>
+      </div>
+    `, {permanent: false, direction: 'top'});
+    
+    polygon.addTo(neighborhoodLayer);
+  });
+  
+  document.getElementById('neighborhoodCount').textContent = Object.keys(cells).length.toLocaleString();
+}
+
+// ══════════════════════════════════════════
+//  PRIORITY 4: OFF-MARKET TARGETS
+// ══════════════════════════════════════════
+
+function buildOffMarketLayer(){
+  offMarketLayer.clearLayers();
+  
+  // In a real implementation, this would load a separate parcel dataset
+  // For now, we'll simulate "off-market" by filtering existing data
+  // that meets SB1123 criteria but isn't in active listings
+  
+  // Simulate off-market parcels (in practice, load from separate dataset)
+  // For demo purposes, let's create a hypothetical off-market filter
+  const offMarketListings = LISTINGS.filter(l => {
+    if(!l.sb1123Eligible) return false;
+    
+    const exitPsf = l.newconPpsf || l.hoodPpsf || l.ppsf || 0;
+    const landBasisPsf = l.lotSf ? l.price / l.lotSf : 0;
+    const BUILD_COST_PSF = proforma.buildCostPerSf || 350;
+    const spread = exitPsf - landBasisPsf - BUILD_COST_PSF;
+    const lotEff = l.lotEfficiency || 0;
+    const slope = l.slope || 0;
+    
+    // Filters: spread >$150/SF, lot efficiency >70%, not VHFHSZ, slope <15%
+    return spread > 150 && lotEff > 70 && !l.fireZone && slope < 15;
+  });
+  
+  offMarketListings.forEach(l => {
+    const exitPsf = l.newconPpsf || l.hoodPpsf || l.ppsf || 0;
+    const landBasisPsf = l.lotSf ? l.price / l.lotSf : 0;
+    const BUILD_COST_PSF = proforma.buildCostPerSf || 350;
+    const spread = exitPsf - landBasisPsf - BUILD_COST_PSF;
+    
+    // Color by spread
+    let pinColor = '#ef4444'; // red
+    if(spread >= 300) pinColor = '#059669'; // deep green
+    else if(spread >= 200) pinColor = '#22c55e'; // green
+    else if(spread >= 100) pinColor = '#eab308'; // yellow
+    else if(spread >= 0) pinColor = '#f97316'; // orange
+    
+    const offMarketIcon = L.divIcon({
+      className: '',
+      html: `<div style="width:10px;height:10px;border:2px solid ${pinColor};border-radius:50%;background:transparent;position:relative">
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:1px;height:8px;background:${pinColor}"></div>
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:8px;height:1px;background:${pinColor}"></div>
+      </div>`,
+      iconSize: [14, 14],
+      iconAnchor: [7, 7]
+    });
+    
+    const marker = L.marker([l.lat, l.lng], { icon: offMarketIcon });
+    
+    // Calculate estimated value using neighborhood median
+    const estValue = l.lotSf * (l.hoodPpsf || exitPsf || 800);
+    const targetBuyPrice = estValue * 0.7; // 30% discount target
+    
+    const pf = calculateProForma(l);
+    
+    marker.bindPopup(`
+      <div class="popup-badge" style="background:#666;color:#fff">OFF-MARKET</div>
+      ${l.isNew ? '<div class="popup-badge" style="background:rgba(34,197,94,0.2);color:#22c55e">NEW LISTING</div>' : ''}
+      <div class="popup-title">${l.address || 'N/A'}, ${l.city || ''}</div>
+      
+      <div class="popup-grid">
+        <div><div class="popup-label">Est. Value</div><div class="popup-value">$${estValue.toLocaleString()}</div></div>
+        <div><div class="popup-label">Target Buy Price</div><div class="popup-value" style="color:var(--green)">$${targetBuyPrice.toLocaleString()}</div></div>
+        <div><div class="popup-label">Lot Size</div><div class="popup-value">${(l.lotSf||0).toLocaleString()} sf</div></div>
+        <div><div class="popup-label">Est. Spread</div><div class="popup-value" style="color:${spread >= 200 ? 'var(--green)' : spread >= 100 ? 'var(--yellow)' : 'var(--red)'}">$${spread.toFixed(0)}/sf</div></div>
+        
+        <div><div class="popup-label">Zone</div><div class="popup-value">${l.zone||'—'}</div></div>
+        <div><div class="popup-label">Lot Efficiency</div><div class="popup-value">${(l.lotEfficiency||0).toFixed(0)}%</div></div>
+        <div><div class="popup-label">Slope</div><div class="popup-value">${(l.slope||0).toFixed(1)}%</div></div>
+        <div><div class="popup-label">Max Units</div><div class="popup-value">${pf.maxUnits}</div></div>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:8px;justify-content:center">
+        <a href="${getZimasUrl(l)}" target="_blank" style="color:var(--yellow);font-size:11px">ZIMAS &#8599;</a>
+        <button class="popup-fav-btn" onclick="alert('Mail campaign coming soon!')" style="background:var(--accent);color:#fff;border-color:var(--accent)">Mail ★</button>
+      </div>
+    `, {maxWidth: 580});
+    
+    marker.addTo(offMarketLayer);
+  });
+  
+  document.getElementById('offMarketCount').textContent = offMarketListings.length.toLocaleString();
+}
+
 function refreshVisibility(){
   Object.entries(markerLayers).forEach(([z,l])=>{
     if(layerState.markers && zoneState[z]) l.addTo(map);
@@ -1641,8 +1890,27 @@ function refreshVisibility(){
     map.removeLayer(compPointsLayer);
     map.removeLayer(compLabelsLayer);
   }
+  // Priority 2: Spread heatmap
+  if(spreadHeatLayer){
+    if(layerState.spreadHeat) spreadHeatLayer.addTo(map);
+    else map.removeLayer(spreadHeatLayer);
+  }
+  // Priority 3: Neighborhood opportunity scorer
+  if(layerState.neighborhoods){
+    if(neighborhoodLayer.getLayers().length === 0) buildNeighborhoodLayer();
+    neighborhoodLayer.addTo(map);
+  } else {
+    map.removeLayer(neighborhoodLayer);
+  }
   if(layerState.listings) listingsLayer.addTo(map);
   else map.removeLayer(listingsLayer);
+  // Priority 4: Off-market targets
+  if(layerState.offMarket){
+    if(offMarketLayer.getLayers().length === 0) buildOffMarketLayer();
+    offMarketLayer.addTo(map);
+  } else {
+    map.removeLayer(offMarketLayer);
+  }
   if(layerState.btr) {
     if(btrLayer.getLayers().length === 0) buildBTRLayer();
     btrLayer.addTo(map);
@@ -1683,6 +1951,16 @@ function toggleZone(zone,enabled){
 }
 
 function toggleLayer(layer,btn){
+  // Priority 2: Make compHeat and spreadHeat mutually exclusive
+  if(layer === 'compHeat' && layerState.spreadHeat){
+    layerState.spreadHeat = false;
+    document.querySelector('[data-layer="spreadHeat"]').classList.remove('active');
+  }
+  if(layer === 'spreadHeat' && layerState.compHeat){
+    layerState.compHeat = false;
+    document.querySelector('[data-layer="compHeat"]').classList.remove('active');
+  }
+  
   layerState[layer]=!layerState[layer];
   btn.classList.toggle('active');
   refreshVisibility();
@@ -1987,6 +2265,8 @@ function applyFilters(){
   rebuildMarkers();
   rebuildListings();
   if(layerState.btr) buildBTRLayer();
+  if(layerState.neighborhoods) buildNeighborhoodLayer();
+  if(layerState.offMarket) buildOffMarketLayer();
   rebuildZoneToggles();
   updateStats();
   updateFilterCount();
@@ -2019,6 +2299,12 @@ function onProformaChange(){
   proforma.saleDiscountPct = parseInt(document.getElementById('pfDiscount').value)||5;
   proforma.demoCost = parseInt(document.getElementById('pfDemoCost').value)||25000;
   enrichListings();
+  // Rebuild spread heatmap since it depends on build cost
+  if(spreadHeatLayer) {
+    map.removeLayer(spreadHeatLayer);
+    buildSpreadHeatmap();
+    if(layerState.spreadHeat) spreadHeatLayer.addTo(map);
+  }
   applyFilters();
 }
 
@@ -2102,6 +2388,9 @@ window.addEventListener('DOMContentLoaded', function(){
         map.on('moveend', updateCompPoints);
         map.on('zoomend', updateCompPoints);
       }
+      
+      // Priority 2: Build spread heatmap
+      buildSpreadHeatmap();
 
       rebuildMarkers();
       rebuildListings();
