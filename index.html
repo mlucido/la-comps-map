@@ -789,7 +789,15 @@ window.LOADED_LISTINGS = window.LOADED_LISTINGS || [];
         </div>
         <div class="proforma-group">
           <label>Demo Cost $</label>
-          <input type="number" id="pfDemoCost" value="25000" step="5000" onchange="onProformaChange()">
+          <input type="number" id="pfDemoCost" value="55000" step="5000" onchange="onProformaChange()">
+        </div>
+        <div class="proforma-group">
+          <label>Hold Months</label>
+          <input type="number" id="pfHoldMonths" value="18" step="3" onchange="onProformaChange()">
+        </div>
+        <div class="proforma-group">
+          <label>Carry Rate %</label>
+          <input type="number" id="pfCarryRate" value="9" step="0.5" onchange="onProformaChange()">
         </div>
       </div>
       <p style="font-size:10px;color:var(--text-dim);margin-top:8px;line-height:1.4">
@@ -963,7 +971,9 @@ let proforma = {
   avgUnitSf: 1200,       // Avg townhome unit size (SB1123 max avg 1,200 SF in R1)
   softCostPct: 25,       // Permits, architecture, engineering
   saleDiscountPct: 5,    // Broker fees + closing costs
-  demoCost: 25000,       // Demolition of existing structure
+  demoCost: 55000,       // Demolition of existing structure
+  holdMonths: 18,        // Construction + sale hold period
+  carryRatePct: 9,       // Annual carry rate on outstanding capital
 };
 
 // ── Map ──
@@ -1158,52 +1168,51 @@ function getGuaranteedFAR(units){
   return 0.5;  // Below 3 units, use base zoning
 }
 
+function getSlopeAdjBuildCost(slope,base){
+  if(!slope||slope<=5) return base;
+  return base + Math.ceil((slope-5)/5)*15;
+}
+
 function calculateProForma(l){
   const maxUnits = getMaxUnits(l);
   const pf = proforma;
-  // Prefer new-construction comps (what we're actually selling), fall back to existing
   const valuePerSf = l.newconPpsf || l.hoodPpsf || l.ppsf;
+  const adjBuildCostPerSf = getSlopeAdjBuildCost(l.slope, pf.buildCostPerSf);
 
-  // ── CRITICAL: Effective Buildable SF (v2 spec 1a) ──
-  // SB1123 caps at 10 units × 1,750 SF = 17,500 SF max product
-  // Even if lot FAR allows more, you can only build 17,500 SF
   const effective_buildable_sf = Math.min(l.lotSf * 1.25, maxUnits * 1750);
 
-  // Revenue: sell townhome units at local $/SF (new-con preferred)
   const grossPerUnit = valuePerSf * pf.avgUnitSf;
   const grossRevenue = maxUnits * grossPerUnit;
   const netRevenue = grossRevenue * (1 - pf.saleDiscountPct / 100);
 
-  // Costs — SB 1123 is ground-up development (demolish existing, build all new)
   const acquisition = l.price;
-  const demo = l.sqft > 0 ? pf.demoCost : 0;  // Demo existing structure
-  const hardCost = maxUnits * pf.avgUnitSf * pf.buildCostPerSf;
+  const demo = l.sqft > 0 ? pf.demoCost : 0;
+  const hardCost = maxUnits * pf.avgUnitSf * adjBuildCostPerSf;
   const softCost = hardCost * (pf.softCostPct / 100);
   const totalBuildCost = hardCost + softCost + demo;
-  const totalCost = acquisition + totalBuildCost;
-  
+
+  // Carry costs: loan interest on avg outstanding + prop tax during hold
+  const avgOutstanding = acquisition + totalBuildCost * 0.5;
+  const carryInterest = avgOutstanding * (pf.carryRatePct / 100) * (pf.holdMonths / 12);
+  const carryPropTax = acquisition * 0.011 * (pf.holdMonths / 12);
+  const totalCarry = carryInterest + carryPropTax;
+
+  const totalCost = acquisition + totalBuildCost + totalCarry;
   const profit = netRevenue - totalCost;
   const margin_on_revenue = netRevenue > 0 ? ((profit / netRevenue) * 100) : 0;
 
-  // ── NEW METRICS (v2 spec Priority 1) ──
-  
-  // 1a. Land Basis per Product SF
   const land_basis_psf = effective_buildable_sf > 0 ? (l.price / effective_buildable_sf) : 0;
-  
-  // 1b. Target Buy Price (30% margin)
+
   const target_margin = 0.30;
   const exit_psf = valuePerSf;
   const target_all_in_psf = exit_psf * (1 - target_margin);
-  const build_psf = pf.buildCostPerSf;
+  const build_psf = adjBuildCostPerSf;
   const target_land_basis_psf = target_all_in_psf - build_psf;
   const target_buy_price = target_land_basis_psf * effective_buildable_sf;
   const headroom = target_buy_price - l.price;
   const headroom_pct = l.price > 0 ? ((headroom / l.price) * 100) : 0;
-  
-  // 1c. Lot Efficiency Score
+
   const lot_efficiency = (l.lotSf * 1.25) > 0 ? (effective_buildable_sf / (l.lotSf * 1.25)) : 0;
-  
-  // 1d. Return on Cost
   const return_on_cost = totalCost > 0 ? ((profit / totalCost) * 100) : 0;
 
   return {
@@ -1228,6 +1237,11 @@ function calculateProForma(l){
     headroom: Math.round(headroom),
     headroom_pct,
     lot_efficiency,
+    // v3: carry + slope
+    adjBuildCostPerSf,
+    totalCarry: Math.round(totalCarry),
+    carryInterest: Math.round(carryInterest),
+    carryPropTax: Math.round(carryPropTax),
   };
 }
 
@@ -1235,15 +1249,21 @@ function calculateProForma(l){
 function calculateBTRProForma(l){
   const maxUnits = getMaxUnits(l);
   const pf = proforma;
-  
-  // BTR uses same build assumptions as SB1123
-  const buildPerUnit = pf.avgUnitSf * pf.buildCostPerSf + (pf.avgUnitSf * pf.buildCostPerSf * pf.softCostPct / 100) / maxUnits;
+
+  // BTR uses same build assumptions as SB1123 (with slope adjustment)
+  const adjBuildCostPerSf = getSlopeAdjBuildCost(l.slope, pf.buildCostPerSf);
+  const buildPerUnit = pf.avgUnitSf * adjBuildCostPerSf + (pf.avgUnitSf * adjBuildCostPerSf * pf.softCostPct / 100) / maxUnits;
   const acquisition = l.price;
   const demo = l.sqft > 0 ? pf.demoCost : 0;
-  const hardCost = maxUnits * pf.avgUnitSf * pf.buildCostPerSf;
+  const hardCost = maxUnits * pf.avgUnitSf * adjBuildCostPerSf;
   const softCost = hardCost * (pf.softCostPct / 100);
   const totalBuildCost = hardCost + softCost + demo;
-  const totalCost = acquisition + totalBuildCost;
+  // Carry costs
+  const avgOutstanding = acquisition + totalBuildCost * 0.5;
+  const carryInterest = avgOutstanding * (pf.carryRatePct / 100) * (pf.holdMonths / 12);
+  const carryPropTax = acquisition * 0.011 * (pf.holdMonths / 12);
+  const totalCarry = carryInterest + carryPropTax;
+  const totalCost = acquisition + totalBuildCost + totalCarry;
   
   // BTR-specific assumptions (from spec)
   const rentPerUnit = l.estRent || 0;  // Monthly rent per unit from ZORI
@@ -1450,7 +1470,10 @@ function rebuildListings(){
         
         <div class="popup-divider"></div>
         <div class="popup-section-label">Economics</div>
-        
+
+        <div><div class="popup-label">Build $/SF${pf.adjBuildCostPerSf>proforma.buildCostPerSf?' <span style="color:var(--orange)">(slope adj)</span>':''}</div><div class="popup-value"${pf.adjBuildCostPerSf>proforma.buildCostPerSf?' style="color:var(--orange)"':''}>$${pf.adjBuildCostPerSf}/sf</div></div>
+        <div><div class="popup-label">Carry (${proforma.holdMonths}mo)</div><div class="popup-value">$${pf.totalCarry.toLocaleString()}</div></div>
+
         <div><div class="popup-label">Build / Unit</div><div class="popup-value">$${Math.round(pf.totalBuildCost/pf.maxUnits).toLocaleString()}</div></div>
         <div><div class="popup-label">Net Revenue</div><div class="popup-value">$${Math.round(pf.netRevenue).toLocaleString()}</div></div>
         
@@ -2307,7 +2330,9 @@ function onProformaChange(){
   proforma.avgUnitSf = parseInt(document.getElementById('pfUnitSize').value)||1200;
   proforma.softCostPct = parseInt(document.getElementById('pfSoftCost').value)||25;
   proforma.saleDiscountPct = parseInt(document.getElementById('pfDiscount').value)||5;
-  proforma.demoCost = parseInt(document.getElementById('pfDemoCost').value)||25000;
+  proforma.demoCost = parseInt(document.getElementById('pfDemoCost').value)||55000;
+  proforma.holdMonths = parseInt(document.getElementById('pfHoldMonths').value)||18;
+  proforma.carryRatePct = parseFloat(document.getElementById('pfCarryRate').value)||9;
   enrichListings();
   // Rebuild spread heatmap since it depends on build cost
   if(spreadHeatLayer) {
