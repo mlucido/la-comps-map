@@ -1150,6 +1150,11 @@ function calculateProForma(l){
   // Prefer new-construction comps (what we're actually selling), fall back to existing
   const valuePerSf = l.newconPpsf || l.hoodPpsf || l.ppsf;
 
+  // ── CRITICAL: Effective Buildable SF (v2 spec 1a) ──
+  // SB1123 caps at 10 units × 1,750 SF = 17,500 SF max product
+  // Even if lot FAR allows more, you can only build 17,500 SF
+  const effective_buildable_sf = Math.min(l.lotSf * 1.25, maxUnits * 1750);
+
   // Revenue: sell townhome units at local $/SF (new-con preferred)
   const grossPerUnit = valuePerSf * pf.avgUnitSf;
   const grossRevenue = maxUnits * grossPerUnit;
@@ -1162,6 +1167,30 @@ function calculateProForma(l){
   const softCost = hardCost * (pf.softCostPct / 100);
   const totalBuildCost = hardCost + softCost + demo;
   const totalCost = acquisition + totalBuildCost;
+  
+  const profit = netRevenue - totalCost;
+  const margin_on_revenue = netRevenue > 0 ? ((profit / netRevenue) * 100) : 0;
+
+  // ── NEW METRICS (v2 spec Priority 1) ──
+  
+  // 1a. Land Basis per Product SF
+  const land_basis_psf = effective_buildable_sf > 0 ? (l.price / effective_buildable_sf) : 0;
+  
+  // 1b. Target Buy Price (30% margin)
+  const target_margin = 0.30;
+  const exit_psf = valuePerSf;
+  const target_all_in_psf = exit_psf * (1 - target_margin);
+  const build_psf = pf.buildCostPerSf;
+  const target_land_basis_psf = target_all_in_psf - build_psf;
+  const target_buy_price = target_land_basis_psf * effective_buildable_sf;
+  const headroom = target_buy_price - l.price;
+  const headroom_pct = l.price > 0 ? ((headroom / l.price) * 100) : 0;
+  
+  // 1c. Lot Efficiency Score
+  const lot_efficiency = (l.lotSf * 1.25) > 0 ? (effective_buildable_sf / (l.lotSf * 1.25)) : 0;
+  
+  // 1d. Return on Cost
+  const return_on_cost = totalCost > 0 ? ((profit / totalCost) * 100) : 0;
 
   return {
     maxUnits,
@@ -1171,11 +1200,20 @@ function calculateProForma(l){
     demo,
     totalBuildCost,
     totalCost,
-    profit: netRevenue - totalCost,
-    margin: totalCost > 0 ? ((netRevenue - totalCost) / totalCost * 100) : 0,
+    profit,
+    margin: margin_on_revenue,  // Keep existing for compatibility
+    margin_on_revenue,
+    return_on_cost,
     pricePerUnit: Math.round(acquisition / maxUnits),
     guaranteedFAR: getGuaranteedFAR(maxUnits),
     buildableSf: Math.round(l.lotSf * getGuaranteedFAR(maxUnits)),
+    // NEW v2 metrics
+    effective_buildable_sf: Math.round(effective_buildable_sf),
+    land_basis_psf: Math.round(land_basis_psf),
+    target_buy_price: Math.round(target_buy_price),
+    headroom: Math.round(headroom),
+    headroom_pct,
+    lot_efficiency,
   };
 }
 
@@ -1366,7 +1404,7 @@ function rebuildListings(){
         ${delta!==null?`<div><div class="popup-label">vs Hood</div><div class="popup-value" style="color:${delta>0?'var(--red)':'var(--green)'}">${delta>0?'+':''}$${delta}/sf</div></div>`:'<div></div>'}
         
         <div><div class="popup-label">Structure</div><div class="popup-value">${l.sqft.toLocaleString()} sf</div></div>
-        ${l.lotSf?`<div><div class="popup-label">Lot Size</div><div class="popup-value">${l.lotSf.toLocaleString()} sf</div></div>`:'<div></div>'}
+        ${l.lotSf?`<div><div class="popup-label">Lot Size</div><div class="popup-value">${l.lotSf.toLocaleString()} sf <small style="color:${pf.lot_efficiency>=0.85?'var(--green)':pf.lot_efficiency>=0.60?'var(--yellow)':'var(--red)'};">(${(pf.lot_efficiency*100).toFixed(0)}% efficient)</small></div></div>`:'<div></div>'}
         ${l.beds?`<div><div class="popup-label">Beds/Baths</div><div class="popup-value">${l.beds}/${l.baths}</div></div>`:'<div></div>'}
         ${l.city?`<div><div class="popup-label">City</div><div class="popup-value">${l.city}</div></div>`:'<div></div>'}
         
@@ -1383,6 +1421,21 @@ function rebuildListings(){
         <div><div class="popup-label">Buy / Unit</div><div class="popup-value">$${pf.pricePerUnit.toLocaleString()}</div></div>
         <div><div class="popup-label">Total Cost</div><div class="popup-value">$${Math.round(pf.totalCost).toLocaleString()}</div></div>
         
+        <div><div class="popup-label">Land Basis / Product SF</div><div class="popup-value" style="color:${pf.land_basis_psf<120?'var(--green)':pf.land_basis_psf<=160?'var(--yellow)':'var(--red)'}">$${pf.land_basis_psf}/sf</div></div>
+        <div><div class="popup-label">Effective Buildable SF</div><div class="popup-value">${pf.effective_buildable_sf.toLocaleString()} sf</div></div>
+        
+        <div class="popup-divider"></div>
+        <div class="popup-section-label" style="color:var(--green)">Target Buy Price (30% Margin)</div>
+        
+        <div><div class="popup-label">Target Buy</div><div class="popup-value" style="color:var(--green)">$${pf.target_buy_price.toLocaleString()}</div></div>
+        <div><div class="popup-label">Asking Price</div><div class="popup-value">$${l.price.toLocaleString()}</div></div>
+        
+        <div><div class="popup-label">Headroom</div><div class="popup-value" style="color:${pf.headroom>=0?'var(--green)':pf.headroom_pct>=-15?'var(--yellow)':'var(--red)'};">${pf.headroom>=0?'+':''}$${pf.headroom.toLocaleString()} (${pf.headroom_pct.toFixed(1)}%)</div></div>
+        <div></div>
+        
+        <div class="popup-divider"></div>
+        <div class="popup-section-label">Economics</div>
+        
         <div><div class="popup-label">Build / Unit</div><div class="popup-value">$${Math.round(pf.totalBuildCost/pf.maxUnits).toLocaleString()}</div></div>
         <div><div class="popup-label">Net Revenue</div><div class="popup-value">$${Math.round(pf.netRevenue).toLocaleString()}</div></div>
         
@@ -1390,7 +1443,10 @@ function rebuildListings(){
         <div><div class="popup-label">Est Profit</div><div class="popup-value ${pf.profit>=0?'popup-profit-positive':'popup-profit-negative'}">$${Math.round(pf.profit).toLocaleString()}</div></div>
         
         <div><div class="popup-label">Profit / Unit</div><div class="popup-value ${pf.profit>=0?'popup-profit-positive':'popup-profit-negative'}">$${Math.round(pf.profit/pf.maxUnits).toLocaleString()}</div></div>
-        <div><div class="popup-label">Margin</div><div class="popup-value ${pf.margin>=0?'popup-profit-positive':'popup-profit-negative'}">${pf.margin.toFixed(1)}%</div></div>
+        <div><div class="popup-label">Return on Cost</div><div class="popup-value ${pf.return_on_cost>=0?'popup-profit-positive':'popup-profit-negative'}">${pf.return_on_cost.toFixed(1)}%</div></div>
+        
+        <div><div class="popup-label">Margin on Revenue</div><div class="popup-value ${pf.margin>=0?'popup-profit-positive':'popup-profit-negative'}">${pf.margin.toFixed(1)}%</div></div>
+        <div></div>
 
         <div class="popup-divider"></div>
         <div class="popup-section-label">ZIMAS Due Diligence</div>
