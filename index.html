@@ -2392,6 +2392,9 @@ window.addEventListener('DOMContentLoaded', function(){
       // Priority 2: Build spread heatmap
       buildSpreadHeatmap();
 
+      // Set sort BEFORE building table
+      currentSort = { key: 'estMargin', dir: 'desc' };
+      
       rebuildMarkers();
       rebuildListings();
       rebuildZoneToggles();
@@ -2414,8 +2417,12 @@ window.addEventListener('DOMContentLoaded', function(){
       // Auto-open the table panel (desktop only)
       if(!isMobile()) toggleListingsPanel();
 
-      // Set default sort to margin desc and explicitly trigger sort
-      sortTable('estMargin');
+      // Update visual sort indicators to match current sort
+      const th=document.querySelector('.listings-table th[data-sort="estMargin"]');
+      if(th){
+        th.classList.add('sorted');
+        th.querySelector('.sort-arrow').textContent='▼';
+      }
 
       // Data freshness indicator
       if(typeof LISTINGS_META !== 'undefined' && LISTINGS_META.builtAt){
