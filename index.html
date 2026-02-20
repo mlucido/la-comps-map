@@ -169,16 +169,21 @@ window.LOADED_LISTINGS = window.LOADED_LISTINGS || [];
   /* Popups */
   .leaflet-popup-content-wrapper{background:var(--surface)!important;color:var(--text)!important;border-radius:10px!important;border:1px solid var(--border)!important;box-shadow:0 8px 32px rgba(0,0,0,0.5)!important}
   .leaflet-popup-tip{background:var(--surface)!important}
-  .leaflet-popup-content{font-family:'DM Sans',sans-serif!important;margin:14px 16px!important;min-width:280px}
+  .leaflet-popup-content{font-family:'DM Sans',sans-serif!important;margin:12px 14px!important;min-width:540px;max-width:640px}
   .popup-title{font-weight:700;font-size:14px;margin-bottom:8px;line-height:1.3}
   .popup-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;margin-right:4px}
   .popup-badge.comp{background:rgba(96,165,250,0.15);color:var(--accent)}
   .popup-badge.listing{background:rgba(244,63,94,0.15);color:var(--listing)}
-  .popup-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px 14px}
-  .popup-label{font-size:10px;color:var(--text-dim)}
-  .popup-value{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600}
-  .popup-divider{grid-column:1/-1;border-top:1px solid var(--border);margin:4px 0}
-  .popup-section-label{grid-column:1/-1;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent);font-weight:700;margin-top:2px}
+  .popup-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px 10px}
+  .popup-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:3px 10px}
+  .popup-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:3px 12px}
+  .popup-label{font-size:10px;color:var(--text-dim);line-height:1.2}
+  .popup-value{font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:600;line-height:1.3}
+  .popup-divider{grid-column:1/-1;border-top:1px solid var(--border);margin:5px 0 3px 0}
+  .popup-section-label{grid-column:1/-1;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent);font-weight:700;margin-top:2px;margin-bottom:2px}
+  .popup-span-2{grid-column:span 2}
+  .popup-span-3{grid-column:span 3}
+  .popup-span-4{grid-column:span 4}
   .popup-profit-positive{color:var(--green)}
   .popup-profit-negative{color:var(--red)}
 
@@ -1202,67 +1207,59 @@ function rebuildListings(){
       ${l.sb1123Eligible ? '<div class="popup-badge" style="background:rgba(34,197,94,0.2);color:var(--green)">SB 1123</div>' : ''}
       ${l.isNew ? '<div class="popup-badge" style="background:rgba(34,197,94,0.2);color:#22c55e">NEW LISTING</div>' : l.isNewThisWeek ? '<div class="popup-badge" style="background:rgba(14,165,233,0.2);color:#0ea5e9">NEW THIS WEEK</div>' : ''}
       <div class="popup-title">${l.address || 'N/A'}</div>
+      
       <div class="popup-grid">
         <div><div class="popup-label">List Price</div><div class="popup-value" style="color:${color}">$${l.price.toLocaleString()}</div></div>
         <div><div class="popup-label">$/SF</div><div class="popup-value">$${l.ppsf}</div></div>
-        ${l.hoodPpsf?`<div><div class="popup-label">Hood $/SF</div><div class="popup-value">$${l.hoodPpsf}</div></div>`:''}
-        ${l.newconPpsf?`<div><div class="popup-label">New-Con $/SF</div><div class="popup-value" style="color:var(--green)">$${l.newconPpsf}</div></div>`:''}
-        ${delta!==null?`<div><div class="popup-label">vs Hood</div><div class="popup-value" style="color:${delta>0?'var(--red)':'var(--green)'}">${delta>0?'+':''}$${delta}/sf</div></div>`:''}
+        ${l.hoodPpsf?`<div><div class="popup-label">Hood $/SF</div><div class="popup-value">$${l.hoodPpsf}</div></div>`:'<div></div>'}
+        ${delta!==null?`<div><div class="popup-label">vs Hood</div><div class="popup-value" style="color:${delta>0?'var(--red)':'var(--green)'}">${delta>0?'+':''}$${delta}/sf</div></div>`:'<div></div>'}
+        
         <div><div class="popup-label">Structure</div><div class="popup-value">${l.sqft.toLocaleString()} sf</div></div>
-        ${l.lotSf?`<div><div class="popup-label">Lot Size</div><div class="popup-value">${l.lotSf.toLocaleString()} sf</div></div>`:''}
-        ${l.beds?`<div><div class="popup-label">Beds/Baths</div><div class="popup-value">${l.beds}/${l.baths}</div></div>`:''}
-        <div><div class="popup-label">Zone</div><div class="popup-value">${l.zone||'—'}${l.zimasZone?` <small style="color:var(--text-dim)">(${l.zimasZone})</small>`:''}</div></div>
-        ${l.track?`<div><div class="popup-label">Track</div><div class="popup-value"><small style="color:var(--text-dim)">${l.track === 'SF' ? 'Single-Family' : 'Multifamily'}</small></div></div>`:''}
-        ${l.city?`<div><div class="popup-label">City</div><div class="popup-value">${l.city}</div></div>`:''}
-        ${l.slope!=null?`<div><div class="popup-label">Lot Slope</div><div class="popup-value" style="color:${l.slope<5?'var(--green)':l.slope<15?'var(--yellow)':l.slope<25?'var(--orange)':'var(--red)'}">${l.slope}%</div></div>`:''}
-        ${l.fireZone?`<div><div class="popup-label">Fire Zone</div><div class="popup-value" style="color:var(--red)">VHFHSZ</div></div>`:''}
-        ${l.hoa?`<div><div class="popup-label">HOA</div><div class="popup-value">$${l.hoa}/mo</div></div>`:''}
-        ${l.ain?`<div><div class="popup-label">AIN</div><div class="popup-value">${l.ain}</div></div>`:''}
-        ${l.assessedLandValue?`<div><div class="popup-label">Land Assessed</div><div class="popup-value">$${l.assessedLandValue.toLocaleString()}</div></div>`:''}
-        ${l.assessedImpValue?`<div><div class="popup-label">Imp Assessed</div><div class="popup-value">$${l.assessedImpValue.toLocaleString()}</div></div>`:''}
+        ${l.lotSf?`<div><div class="popup-label">Lot Size</div><div class="popup-value">${l.lotSf.toLocaleString()} sf</div></div>`:'<div></div>'}
+        ${l.beds?`<div><div class="popup-label">Beds/Baths</div><div class="popup-value">${l.beds}/${l.baths}</div></div>`:'<div></div>'}
+        ${l.city?`<div><div class="popup-label">City</div><div class="popup-value">${l.city}</div></div>`:'<div></div>'}
+        
+        <div><div class="popup-label">Zone ${l.track?`(${l.track})`:''}</div><div class="popup-value">${l.zone||'—'}${l.zimasZone?` <small style="color:var(--text-dim)">${l.zimasZone}</small>`:''}</div></div>
+        ${l.slope!=null?`<div><div class="popup-label">Lot Slope</div><div class="popup-value" style="color:${l.slope<5?'var(--green)':l.slope<15?'var(--yellow)':l.slope<25?'var(--orange)':'var(--red)'}">${l.slope}%</div></div>`:'<div></div>'}
+        ${l.dom!==null&&l.dom!==undefined?`<div><div class="popup-label">Days on Market</div><div class="popup-value" style="color:${l.dom>=60?'var(--green)':l.dom>=30?'var(--yellow)':'var(--text)'}">${l.dom}</div></div>`:'<div></div>'}
+        ${l.lotSf&&l.sqft?`<div><div class="popup-label">Current FAR</div><div class="popup-value">${(l.sqft/l.lotSf).toFixed(2)}</div></div>`:'<div></div>'}
 
         <div class="popup-divider"></div>
-        <div class="popup-section-label">SB 1123 Pro Forma — ${pf.maxUnits} Townhomes</div>
-        <div><div class="popup-label">Guaranteed FAR</div><div class="popup-value">${pf.guaranteedFAR}x (${pf.buildableSf.toLocaleString()} sf)</div></div>
-        <div><div class="popup-label">Exit $/SF</div><div class="popup-value" style="color:var(--green)">$${(l.newconPpsf||l.hoodPpsf||l.ppsf)}</div></div>
-        ${l.dom!==null&&l.dom!==undefined?`<div><div class="popup-label">Days on Market</div><div class="popup-value" style="color:${l.dom>=60?'var(--green)':l.dom>=30?'var(--yellow)':'var(--text)'}">${l.dom}</div></div>`:''}
-        ${l.lotSf&&l.sqft?`<div><div class="popup-label">Current FAR</div><div class="popup-value">${(l.sqft/l.lotSf).toFixed(2)}</div></div>`:''}
-
-        <div class="popup-divider"></div>
-        <div class="popup-section-label">Per-Unit Economics</div>
+        <div class="popup-section-label">SB 1123 Pro Forma — ${pf.maxUnits} Townhomes • ${pf.guaranteedFAR}x FAR (${pf.buildableSf.toLocaleString()} sf) • Exit $${(l.newconPpsf||l.hoodPpsf||l.ppsf)}/sf</div>
+      </div>
+      
+      <div class="popup-grid-2">
         <div><div class="popup-label">Buy / Unit</div><div class="popup-value">$${pf.pricePerUnit.toLocaleString()}</div></div>
-        <div><div class="popup-label">Build / Unit</div><div class="popup-value">$${Math.round(pf.totalBuildCost/pf.maxUnits).toLocaleString()}</div></div>
-        <div><div class="popup-label">Sell / Unit</div><div class="popup-value" style="color:var(--green)">$${Math.round(pf.netRevenue/pf.maxUnits).toLocaleString()}</div></div>
-        <div><div class="popup-label">Profit / Unit</div><div class="popup-value ${pf.profit>=0?'popup-profit-positive':'popup-profit-negative'}">$${Math.round(pf.profit/pf.maxUnits).toLocaleString()}</div></div>
-
-        <div class="popup-divider"></div>
-        <div class="popup-section-label">Total Project</div>
         <div><div class="popup-label">Total Cost</div><div class="popup-value">$${Math.round(pf.totalCost).toLocaleString()}</div></div>
+        
+        <div><div class="popup-label">Build / Unit</div><div class="popup-value">$${Math.round(pf.totalBuildCost/pf.maxUnits).toLocaleString()}</div></div>
         <div><div class="popup-label">Net Revenue</div><div class="popup-value">$${Math.round(pf.netRevenue).toLocaleString()}</div></div>
+        
+        <div><div class="popup-label">Sell / Unit</div><div class="popup-value" style="color:var(--green)">$${Math.round(pf.netRevenue/pf.maxUnits).toLocaleString()}</div></div>
         <div><div class="popup-label">Est Profit</div><div class="popup-value ${pf.profit>=0?'popup-profit-positive':'popup-profit-negative'}">$${Math.round(pf.profit).toLocaleString()}</div></div>
+        
+        <div><div class="popup-label">Profit / Unit</div><div class="popup-value ${pf.profit>=0?'popup-profit-positive':'popup-profit-negative'}">$${Math.round(pf.profit/pf.maxUnits).toLocaleString()}</div></div>
         <div><div class="popup-label">Margin</div><div class="popup-value ${pf.margin>=0?'popup-profit-positive':'popup-profit-negative'}">${pf.margin.toFixed(1)}%</div></div>
 
         <div class="popup-divider"></div>
         <div class="popup-section-label">ZIMAS Due Diligence</div>
-        <div style="grid-column:1/-1;font-size:10px;color:var(--text-dim);line-height:1.6">
-          Verify before pursuing:<br>
-          <span style="color:var(--green)">&#10003;</span> R1-1 or R2+ zoning confirmed<br>
-          <span style="color:var(--green)">&#10003;</span> Not in Hillside Area<br>
-          <span style="color:var(--green)">&#10003;</span> No Historic Preservation overlay<br>
-          <span style="color:var(--red)">&#10007;</span> NOT in Very High Fire Hazard Zone (hard exclusion)<br>
-          <span style="color:var(--green)">&#10003;</span> No Specific Plan restrictions<br>
-          <span style="color:var(--yellow)">&#9733;</span> Transit Priority Area = 0 parking req<br>
-          <span style="color:var(--green)">&#10003;</span> No rent-controlled tenants (last 5 yrs)<br>
-          <span style="color:var(--green)">&#10003;</span> No Ellis Act evictions (last 15 yrs)
+        <div class="popup-span-2" style="font-size:10px;color:var(--text-dim);line-height:1.5">
+          <span style="color:var(--green)">✓</span> R1-1 or R2+ zoning • 
+          <span style="color:var(--green)">✓</span> Not Hillside Area • 
+          <span style="color:var(--green)">✓</span> No Historic Overlay • 
+          <span style="color:var(--red)">✗</span> NOT VHFHSZ (hard exclusion) • 
+          <span style="color:var(--green)">✓</span> No Specific Plan restrictions • 
+          <span style="color:var(--yellow)">★</span> Transit Priority Area = 0 parking • 
+          <span style="color:var(--green)">✓</span> No rent-control/Ellis Act
         </div>
       </div>
-      <div style="margin-top:8px;display:flex;gap:8px;justify-content:center;align-items:center">
+      <div style="margin-top:6px;display:flex;gap:8px;justify-content:center;align-items:center">
         ${l.url?`<a href="${l.url}" target="_blank" style="color:var(--accent);font-size:11px">Redfin &#8599;</a>`:''}
         <a href="${getZimasUrl(l)}" target="_blank" style="color:var(--yellow);font-size:11px">ZIMAS &#8599;</a>
         <button class="popup-fav-btn ${isFavorite(l)?'active':''}" onclick="toggleFavorite(${l.lat},${l.lng});this.classList.toggle('active')">&#9733; ${isFavorite(l)?'Saved':'Save'}</button>
       </div>
       <textarea class="popup-notes" placeholder="Add notes..." onchange="saveFavNote(${l.lat},${l.lng},this.value)">${getFavNote(l.lat,l.lng)}</textarea>
-    `,{maxWidth:320});
+    `,{maxWidth:580});
     cm.addTo(listingsLayer);
   });
 
