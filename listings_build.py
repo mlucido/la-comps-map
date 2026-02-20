@@ -272,6 +272,7 @@ with open(src, encoding="utf-8", errors="replace") as f:
                 "lotSf": int(lot_size) if lot_size > 0 else None,
                 "ppsf": ppsf,
                 "zone": zone,
+                "track": "SF" if zone in ("R1", "LAND") else "MF",  # SF=single-family, MF=multifamily
                 "neighborhood": neighborhood,
                 "zip": zipcode,
                 "city": city,
@@ -379,6 +380,8 @@ if os.path.exists(ZONING_FILE):
                     elif old_zone in ("R2", "R3", "R4") and sb_zone in ("R1", "LAND"):
                         zimas_downgraded += 1
                 l["zone"] = sb_zone  # Override Redfin guess with ZIMAS truth
+                # Add track indicator (SF = single-family, MF = multifamily)
+                l["track"] = "SF" if sb_zone in ("R1", "LAND") else "MF"
                 zimas_stamped += 1
 
     print(f"   ZIMAS zoning stamped: {zimas_stamped:,}/{len(listings):,}")
