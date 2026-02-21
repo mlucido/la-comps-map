@@ -1581,7 +1581,7 @@ function rebuildListings(){
     const pf = calculateProForma(l);
 
     cm.bindPopup(`
-      ${l.sb1123Eligible ? '<div class="popup-badge" style="background:rgba(34,197,94,0.2);color:var(--green)">SB 1123</div>' : ''}
+      <div class="popup-badge" style="background:${ZONE_COLORS[l.zone]||'#666'}22;color:${ZONE_COLORS[l.zone]||'#666'}">${l.zone} — ${ZONE_LABELS[l.zone]||l.zone||'Unknown'}</div>
       ${l.isNew ? '<div class="popup-badge" style="background:rgba(34,197,94,0.2);color:#22c55e">NEW LISTING</div>' : l.isNewThisWeek ? '<div class="popup-badge" style="background:rgba(14,165,233,0.2);color:#0ea5e9">NEW THIS WEEK</div>' : ''}
       <div class="popup-title">${l.address || 'N/A'}</div>
       
