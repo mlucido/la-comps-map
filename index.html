@@ -1499,7 +1499,7 @@ function rebuildListings(){
           <span style="color:var(--green)">✓</span> R1-1 or R2+ zoning • 
           <span style="color:var(--green)">✓</span> Not Hillside Area • 
           <span style="color:var(--green)">✓</span> No Historic Overlay • 
-          <span style="color:var(--red)">✗</span> NOT VHFHSZ (hard exclusion) • 
+          ${l.fireZone ? '<span style="color:var(--red)">✗</span> VHFHSZ fire zone (hard exclusion)' : '<span style="color:var(--green)">✓</span> NOT VHFHSZ (safe to build)'} • 
           <span style="color:var(--green)">✓</span> No Specific Plan restrictions • 
           <span style="color:var(--yellow)">★</span> Transit Priority Area = 0 parking • 
           <span style="color:var(--green)">✓</span> No rent-control/Ellis Act
@@ -1647,7 +1647,7 @@ function buildBTRLayer(){
           <span style="color:var(--green)">✓</span> R1-1 or R2+ zoning • 
           <span style="color:var(--green)">✓</span> Not Hillside Area • 
           <span style="color:var(--green)">✓</span> No Historic Overlay • 
-          <span style="color:var(--red)">✗</span> NOT VHFHSZ (hard exclusion) • 
+          ${l.fireZone ? '<span style="color:var(--red)">✗</span> VHFHSZ fire zone (hard exclusion)' : '<span style="color:var(--green)">✓</span> NOT VHFHSZ (safe to build)'} • 
           <span style="color:var(--green)">✓</span> No Specific Plan restrictions • 
           <span style="color:var(--yellow)">★</span> Transit Priority Area = 0 parking • 
           <span style="color:var(--green)">✓</span> No rent-control/Ellis Act
