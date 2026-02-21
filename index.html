@@ -2493,8 +2493,10 @@ function rebuildTable(filtered){
   }).join('');
 
   const countStr = sorted.length > 500 ? `${sorted.length} deals (showing 500)` : `${sorted.length} deals`;
-  document.getElementById('tablePanelCount').textContent = countStr;
-  document.getElementById('listingPanelCount').textContent = `${sorted.length} deals`;
+  const tablePanelCount = document.getElementById('tablePanelCount');
+  if(tablePanelCount) tablePanelCount.textContent = countStr;
+  const listingPanelCount = document.getElementById('listingPanelCount');
+  if(listingPanelCount) listingPanelCount.textContent = `${sorted.length} deals`;
   rebuildMobileCards(sorted);
 }
 
