@@ -676,9 +676,9 @@ window.LOADED_LISTINGS = window.LOADED_LISTINGS || [];
     </div>
   </div>
 
-  <!-- ═══ LAYERS ═══ -->
+  <!-- ═══ PRIMARY LAYERS ═══ -->
   <div class="section">
-    <div class="section-title">Layers</div>
+    <div class="section-title" onclick="toggleSection(this)">Layers <span class="chevron">▼</span></div>
     <div class="section-content">
       <button class="layer-btn active" data-layer="listings" onclick="toggleLayer('listings',this)">
         <span class="icon">●</span> For Sale <span class="layer-count" id="listingCount">0</span>
@@ -686,41 +686,39 @@ window.LOADED_LISTINGS = window.LOADED_LISTINGS || [];
       <button class="layer-btn" data-layer="offMarket" onclick="toggleLayer('offMarket',this)">
         <span class="icon">◎</span> Off-Market Targets <span class="layer-count" id="offMarketCount">0</span>
       </button>
+      <button class="layer-btn active" data-layer="spreadHeat" onclick="toggleLayer('spreadHeat',this)">
+        <span class="icon" style="color:#22c55e">▪</span> Profit Margin Heatmap <span class="layer-count" id="spreadCount">0</span>
+      </button>
+      <button class="layer-btn active" data-layer="btr" onclick="toggleLayer('btr',this)">
+        <span class="icon" style="color:#f59e0b">◆</span> Build to Rent <span class="layer-count" id="btrCount">0</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══ SECONDARY LAYERS ═══ -->
+  <div class="section collapsed">
+    <div class="section-title" onclick="toggleSection(this)">More Layers <span class="chevron">▼</span></div>
+    <div class="section-content">
       <button class="layer-btn" data-layer="markers" onclick="toggleLayer('markers',this)">
         <span class="icon">○</span> Recent Sales <span class="layer-count" id="compCount">0</span>
       </button>
       <button class="layer-btn" data-layer="compHeat" onclick="toggleLayer('compHeat',this)">
         <span class="icon" style="color:#f0641e">▪</span> Sale Price Heatmap <span class="layer-count" id="heatCount">0</span>
       </button>
-      <button class="layer-btn active" data-layer="spreadHeat" onclick="toggleLayer('spreadHeat',this)">
-        <span class="icon" style="color:#22c55e">▪</span> Profit Margin Heatmap <span class="layer-count" id="spreadCount">0</span>
-      </button>
       <button class="layer-btn" data-layer="neighborhoods" onclick="toggleLayer('neighborhoods',this)">
         <span class="icon" style="color:#8b5cf6">▪</span> Neighborhood Scores <span class="layer-count" id="neighborhoodCount">0</span>
       </button>
-      <button class="layer-btn active" data-layer="btr" onclick="toggleLayer('btr',this)">
-        <span class="icon" style="color:#f59e0b">◆</span> Build to Rent <span class="layer-count" id="btrCount">0</span>
-      </button>
-      
-      <!-- Risk Overlays (collapsible group) -->
-      <div class="section collapsed" style="margin:8px 0 0;padding:0;border:none">
-        <div class="section-title" onclick="toggleSection(this)" style="margin-bottom:4px;cursor:pointer">
-          Risk Overlays <span class="chevron">▼</span>
-        </div>
-        <div class="section-content">
-          <button class="layer-btn" data-layer="fireZones" onclick="toggleLayer('fireZones',this)">
-            <span class="icon" style="color:#ef4444">!</span> Fire Risk
-          </button>
-          <button class="layer-btn" data-layer="floodZones" onclick="toggleLayer('floodZones',this)">
-            <span class="icon" style="color:#3b82f6">~</span> Flood Risk
-          </button>
-          <button class="layer-btn" data-layer="liquefaction" onclick="toggleLayer('liquefaction',this)">
-            <span class="icon" style="color:#a855f7">▪</span> Earthquake Risk
-          </button>
-        </div>
-      </div>
       <button class="layer-btn" data-layer="parcels" onclick="toggleLayer('parcels',this)">
         <span class="icon">◻</span> Parcel Boundaries
+      </button>
+      <button class="layer-btn" data-layer="fireZones" onclick="toggleLayer('fireZones',this)">
+        <span class="icon" style="color:#ef4444">!</span> Fire Risk
+      </button>
+      <button class="layer-btn" data-layer="floodZones" onclick="toggleLayer('floodZones',this)">
+        <span class="icon" style="color:#3b82f6">~</span> Flood Risk
+      </button>
+      <button class="layer-btn" data-layer="liquefaction" onclick="toggleLayer('liquefaction',this)">
+        <span class="icon" style="color:#a855f7">▪</span> Earthquake Risk
       </button>
     </div>
   </div>
@@ -737,7 +735,7 @@ window.LOADED_LISTINGS = window.LOADED_LISTINGS || [];
     <div class="section-content">
 
   <!-- Margin Filter -->
-  <div class="section collapsed">
+  <div class="section">
     <div class="section-title" onclick="toggleSection(this)">Deal Margin <span class="badge">KEY</span> <span class="chevron">▼</span></div>
     <div class="section-content">
       <div class="range-filter">
@@ -752,7 +750,7 @@ window.LOADED_LISTINGS = window.LOADED_LISTINGS || [];
           <input type="range" id="marginSliderMax" min="-100" max="100" step="5" value="100">
         </div>
         <div class="preset-row">
-          <button class="preset-btn" onclick="setMarginPreset(30,this)">Green (30%+)</button>
+          <button class="preset-btn active" onclick="setMarginPreset(30,this)">Green (30%+)</button>
           <button class="preset-btn" onclick="setMarginPreset(20,this)">Yellow+ (20%+)</button>
           <button class="preset-btn" onclick="setMarginPreset(0,this)">Profitable (0%+)</button>
         </div>
@@ -1047,7 +1045,7 @@ const filters = {
   sqft: { min:0, max:7000, dataMin:0, dataMax:7000, step:100, cap:7000, defaultMin:null, defaultMax:null },
   lot:  { min:0, max:45000, dataMin:0, dataMax:45000, step:500, cap:45000, defaultMin:12000, defaultMax:40000 },
   slope:{ min:0, max:100, dataMin:0, dataMax:100, step:1, cap:100, defaultMin:null, defaultMax:10 },
-  margin:{ min:-100, max:100, dataMin:-100, dataMax:100, step:5, cap:null, defaultMin:null, defaultMax:null },
+  margin:{ min:-100, max:100, dataMin:-100, dataMax:100, step:5, cap:null, defaultMin:30, defaultMax:null },
 };
 
 let currentSort = { key:null, dir:'desc' };
