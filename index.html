@@ -1060,8 +1060,11 @@ function sharePin(lat,lng,event){
   });
 }
 function toggleFavoritesFilter(){
-  favoritesOnly=!favoritesOnly;
   const btn = document.getElementById('favToggle');
+  // Don't toggle if button is disabled (0 saved deals)
+  if(btn.disabled) return;
+  
+  favoritesOnly=!favoritesOnly;
   if(favoritesOnly){
     btn.classList.add('active');
   } else {
