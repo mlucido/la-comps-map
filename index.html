@@ -2115,34 +2115,94 @@ function buildOffMarketLayer(){
     
     const marker = L.marker([l.lat, l.lng], { icon: offMarketIcon });
     
-    // FIX 6 & 7 & 9 & 10: Reordered card layout with proper formatting and renamed labels
+    // Build full pro forma using est_offer as acquisition price
+    const omProxy = Object.assign({}, l, {price: Math.round(est_offer)});
+    const pf = calculateProForma(omProxy);
+    const omExitPsf = l.newconPpsf || l.exitPsf || l.ppsf || 0;
+    const omEstMvPsf = (est_market_value && l.lotSf) ? Math.round(est_market_value / l.lotSf) : null;
+
     marker.bindPopup(`
-      <div class="popup-badge" style="background:#666;color:#fff">OFF-MARKET</div>
-      ${l.isNew ? '<div class="popup-badge" style="background:rgba(34,197,94,0.2);color:#22c55e">NEW LISTING</div>' : ''}
-      <div class="popup-title">${l.address || 'N/A'}, ${l.city || ''}</div>
-      
-      <div class="popup-grid">
-        <div><div class="popup-label">Est. Offer</div><div class="popup-value" style="color:var(--green)">$${Math.round(est_offer).toLocaleString()}</div></div>
-        <div><div class="popup-label">Margin at Offer</div><div class="popup-value" style="color:${marginColor}">${Math.round(margin_at_offer * 100)}%</div></div>
-        <div><div class="popup-label">Est. Spread</div><div class="popup-value" style="color:${spread >= 200 ? 'var(--green)' : spread >= 100 ? 'var(--yellow)' : 'var(--red)'}">$${Math.round(spread).toLocaleString()}/sf</div></div>
-        
-        <div><div class="popup-label">Est. Market Value</div><div class="popup-value">$${Math.round(est_market_value).toLocaleString()}</div></div>
-        <div><div class="popup-label">Target Max Buy</div><div class="popup-value">$${Math.round(target_max_buy).toLocaleString()}</div></div>
-        <div><div class="popup-label">Headroom</div><div class="popup-value" style="color:${headroomColor}">${headroom > 0 ? '+' : ''}$${Math.round(headroom).toLocaleString()}</div></div>
-        
-        <div><div class="popup-label">Zone</div><div class="popup-value">${l.zone||'—'}</div></div>
-        <div><div class="popup-label">Lot Size</div><div class="popup-value">${Math.round(l.lotSf||0).toLocaleString()} sf</div></div>
-        <div><div class="popup-label">Lot Efficiency</div><div class="popup-value">${l.lotEfficiency||0}%</div></div>
-        <div><div class="popup-label">Slope</div><div class="popup-value">${(l.slope||0).toFixed(1)}%</div></div>
-        
-        <div><div class="popup-label">Max Units</div><div class="popup-value">${maxUnits}</div></div>
-        <div><div class="popup-label">Land Basis/Product SF</div><div class="popup-value" style="color:${landBasisColor}">$${Math.round(land_basis_psf).toLocaleString()}/sf</div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <div class="popup-badge" style="background:#666;color:#fff">OFF-MARKET</div>
+        <div class="popup-badge" style="background:${ZONE_COLORS[l.zone]||'#666'}22;color:${ZONE_COLORS[l.zone]||'#666'}">${l.zone} — ${ZONE_LABELS[l.zone]||l.zone||'Unknown'}</div>
       </div>
-      <div style="margin-top:8px;display:flex;gap:8px;justify-content:center">
+      ${l.hasStructure ? '<div class="popup-badge" style="background:rgba(239,68,68,0.15);color:#ef4444">DEMO REQUIRED</div>' : ''}
+      ${l.urbanArea === false ? '<div class="popup-badge" style="background:rgba(239,68,68,0.15);color:#ef4444">NOT URBAN AREA</div>' : ''}
+      <div class="popup-title">${l.address || 'N/A'}</div>
+
+      <div class="popup-grid">
+        <div><div class="popup-label">Est. Market Value</div><div class="popup-value" style="color:${marginColor}">$${est_market_value > 0 ? Math.round(est_market_value).toLocaleString() : '—'}</div></div>
+        <div><div class="popup-label">$/Lot SF</div><div class="popup-value">${omEstMvPsf ? '$'+omEstMvPsf : '—'}</div></div>
+        ${omExitPsf?'<div><div class="popup-label">Exit $/SF</div><div class="popup-value">$'+omExitPsf+'</div></div>':'<div></div>'}
+        ${omExitPsf && omEstMvPsf?'<div><div class="popup-label">vs Exit</div><div class="popup-value" style="color:'+(omEstMvPsf>omExitPsf?'var(--red)':'var(--green)')+'">'+((omEstMvPsf-omExitPsf)>0?'+':'')+'$'+(omEstMvPsf-omExitPsf)+'/sf</div></div>':'<div></div>'}
+
+        <div><div class="popup-label">Structure</div><div class="popup-value">${l.sqft ? l.sqft.toLocaleString()+' sf' : '0 sf'}</div></div>
+        ${l.lotSf?'<div><div class="popup-label">Lot Size</div><div class="popup-value">'+l.lotSf.toLocaleString()+' sf <small style="color:'+(pf.lot_efficiency>=0.85?'var(--green)':pf.lot_efficiency>=0.60?'var(--yellow)':'var(--red)')+'">('+((pf.lot_efficiency*100).toFixed(0))+'% efficient)</small></div></div>':'<div></div>'}
+        ${l.city?'<div><div class="popup-label">City</div><div class="popup-value">'+l.city+'</div></div>':'<div></div>'}
+        <div><div class="popup-label">Zone</div><div class="popup-value">${l.zone||'—'}${l.zimasZone?' <small style="color:var(--text-dim)">'+l.zimasZone+'</small>':''}</div></div>
+
+        ${l.slope!=null?'<div><div class="popup-label">Terrain Slope</div><div class="popup-value" style="color:'+(l.slope<5?'var(--green)':l.slope<15?'var(--yellow)':l.slope<25?'var(--orange)':'var(--red)')+'">'+l.slope+'%</div></div>':'<div></div>'}
+        ${l.lotSf&&l.sqft?'<div><div class="popup-label">Current Density</div><div class="popup-value">'+(l.sqft/l.lotSf).toFixed(2)+'</div></div>':'<div></div>'}
+
+        <div class="popup-divider"></div>
+        <div class="popup-section-label">DEVELOPMENT PRO FORMA — ${pf.maxUnits} Townhomes • ${pf.guaranteedFAR}x FAR (${pf.buildableSf.toLocaleString()} sf) • Exit $${omExitPsf}/sf</div>
+      </div>
+
+      <div class="popup-grid-2">
+        <div><div class="popup-label">Est. Offer / Unit</div><div class="popup-value">$${Math.round(est_offer / pf.maxUnits).toLocaleString()}</div></div>
+        <div><div class="popup-label">Total Cost</div><div class="popup-value">$${Math.round(pf.totalCost).toLocaleString()}</div></div>
+
+        <div><div class="popup-label">Land Basis / Product SF</div><div class="popup-value" style="color:${pf.land_basis_psf<120?'var(--green)':pf.land_basis_psf<=160?'var(--yellow)':'var(--red)'}">$${pf.land_basis_psf}/sf</div></div>
+        <div><div class="popup-label">Effective Buildable SF</div><div class="popup-value">${pf.effective_buildable_sf.toLocaleString()} sf</div></div>
+
+        <div class="popup-divider"></div>
+        <div class="popup-section-label" style="color:var(--green)">Target Buy Price (30% Margin)</div>
+
+        <div><div class="popup-label">Target Buy</div><div class="popup-value" style="color:var(--green)">$${pf.target_buy_price.toLocaleString()}</div></div>
+        <div><div class="popup-label">Est. Market Value</div><div class="popup-value">${est_market_value > 0 ? '$'+Math.round(est_market_value).toLocaleString() : '—'}</div></div>
+
+        <div><div class="popup-label">Headroom</div><div class="popup-value" style="color:${est_market_value > 0 ? (pf.target_buy_price - est_market_value >= 0 ? 'var(--green)' : (pf.target_buy_price - est_market_value) / est_market_value >= -0.15 ? 'var(--yellow)' : 'var(--red)') : 'var(--text-dim)'}">${est_market_value > 0 ? ((pf.target_buy_price - est_market_value >= 0 ? '+' : '') + '$' + Math.round(pf.target_buy_price - est_market_value).toLocaleString() + ' (' + ((pf.target_buy_price - est_market_value) / est_market_value * 100).toFixed(1) + '%)') : 'N/A — no market value estimate'}</div></div>
+        <div></div>
+
+        <div class="popup-divider"></div>
+        <div class="popup-section-label">Economics (at Est. Offer $${Math.round(est_offer).toLocaleString()})</div>
+
+        <div><div class="popup-label">Build $/SF${pf.adjBuildCostPerSf>proforma.allInBuildPsf?' <span style="color:var(--orange)">(slope adj)</span>':''}</div><div class="popup-value"${pf.adjBuildCostPerSf>proforma.allInBuildPsf?' style="color:var(--orange)"':''}>$${pf.adjBuildCostPerSf}/sf</div></div>
+        <div><div class="popup-label">Carry (${proforma.holdMonths}mo)</div><div class="popup-value">$${pf.totalCarry.toLocaleString()}</div></div>
+
+        <div><div class="popup-label">Construction / Unit</div><div class="popup-value">$${Math.round(pf.totalBuildCost/pf.maxUnits).toLocaleString()}</div></div>
+        <div><div class="popup-label">Net Revenue</div><div class="popup-value">$${Math.round(pf.netRevenue).toLocaleString()}</div></div>
+
+        <div><div class="popup-label">Sell / Unit</div><div class="popup-value" style="color:var(--green)">$${Math.round(pf.netRevenue/pf.maxUnits).toLocaleString()}</div></div>
+        <div><div class="popup-label">Est Profit</div><div class="popup-value ${pf.profit>=0?'popup-profit-positive':'popup-profit-negative'}">$${Math.round(pf.profit).toLocaleString()}</div></div>
+
+        <div><div class="popup-label">Profit / Unit</div><div class="popup-value ${pf.profit>=0?'popup-profit-positive':'popup-profit-negative'}">$${Math.round(pf.profit/pf.maxUnits).toLocaleString()}</div></div>
+        <div><div class="popup-label">Return on Cost</div><div class="popup-value ${pf.return_on_cost>=0?'popup-profit-positive':'popup-profit-negative'}">${pf.return_on_cost.toFixed(1)}%</div></div>
+
+        <div><div class="popup-label">Margin on Revenue</div><div class="popup-value ${pf.margin>=0?'popup-profit-positive':'popup-profit-negative'}">${pf.margin.toFixed(1)}%</div></div>
+        <div></div>
+
+        <div class="popup-divider"></div>
+        <div class="popup-section-label">ZIMAS Due Diligence</div>
+        <div class="popup-span-2" style="font-size:10px;color:var(--text-dim);line-height:1.5">
+          ${l.zimasZone ? (
+            '<span style="color:var(--green)">✓</span> ' + l.zimasZone + ' zoning confirmed • ' +
+            '<span style="color:var(--green)">✓</span> Not Hillside Area • ' +
+            '<span style="color:var(--green)">✓</span> No Historic Overlay • ' +
+            (l.fireZone ? '<span style="color:var(--red)">✗</span> VHFHSZ fire zone (hard exclusion)' : '<span style="color:var(--green)">✓</span> NOT VHFHSZ (safe to build)') + ' • ' +
+            '<span style="color:var(--green)">✓</span> No Specific Plan restrictions • ' +
+            '<span style="color:var(--yellow)">★</span> Transit Priority Area = 0 parking • ' +
+            '<span style="color:var(--green)">✓</span> No rent-control/Ellis Act'
+          ) : '<span style="color:var(--yellow)">⚠️</span> No ZIMAS data — zoning unverified (outside LA City)'}
+        </div>
+      </div>
+      <div style="margin-top:6px;display:flex;gap:8px;justify-content:center;align-items:center">
         <a href="${getZimasUrl(l)}" target="_blank" style="color:var(--yellow);font-size:11px">ZIMAS &#8599;</a>
         <button class="popup-fav-btn" onclick="alert('Mail campaign coming soon!')" style="background:var(--accent);color:#fff;border-color:var(--accent)">Mail ★</button>
+        <button class="popup-fav-btn ${isFavorite(l)?'active':''}" onclick="toggleFavorite(${l.lat},${l.lng});this.classList.toggle('active')">&#9733; ${isFavorite(l)?'Saved':'Save'}</button>
         <button class="popup-fav-btn" onclick="sharePin(${l.lat},${l.lng},event)">&#128279; Share</button>
       </div>
+      <textarea class="popup-notes" placeholder="Add notes..." onchange="saveFavNote(${l.lat},${l.lng},this.value)">${getFavNote(l.lat,l.lng)}</textarea>
     `, {maxWidth: 580});
     
     marker.addTo(offMarketLayer);
