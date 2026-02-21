@@ -857,7 +857,7 @@ window.LOADED_LISTINGS = window.LOADED_LISTINGS || [];
 
 <div id="onboarding-tip" class="onboarding-tip" style="display:none">
   <button class="close-btn" onclick="dismissOnboarding()">×</button>
-  👋 <strong>First time here?</strong> Click any <span style="color:var(--green);font-weight:700">green pin</span> to see a profitable deal. Yellow = moderate margin, Red = tight margin.
+  👋 <strong>First time here?</strong> Click any <span style="color:var(--green);font-weight:700">green pin</span> to see a profitable deal. Yellow = moderate margin, Gray = below target.
 </div>
 <div id="map"></div>
 
@@ -1531,16 +1531,16 @@ function rebuildListings(){
       color = '#facc15'; // Yellow - 20-29% margin
       borderColor = '#ca8a04';
     } else {
-      color = '#ef4444'; // Red - under 20% margin
-      borderColor = '#dc2626';
+      color = '#9ca3af'; // Gray - under 20% margin (avoids clash with heatmap red)
+      borderColor = '#6b7280';
     }
     
     const lotSf = l.lotSf || 0;
     const isNewListing = l.isNew;
     const baseRadius = lotSf >= 15000 ? 11 : lotSf >= 10000 ? 9 : 8;
     const radius = isNewListing ? baseRadius + 3 : baseRadius;
-    const markerColor = isNewListing ? '#22c55e' : borderColor;
-    const markerWeight = isNewListing ? 4 : 3;
+    const markerColor = isNewListing ? '#22c55e' : '#ffffff'; // White border for heatmap contrast
+    const markerWeight = isNewListing ? 4 : 2;
     const cm = L.circleMarker([l.lat,l.lng],{
       radius, color:markerColor, fillColor:color,
       fillOpacity: 0.95,
@@ -2187,7 +2187,7 @@ function updatePinLegend(){
   if(layerState.listings){
     html += '<div class="pin-legend-item"><div class="pin-legend-marker" style="background:#22c55e"></div> 30%+ margin</div>';
     html += '<div class="pin-legend-item"><div class="pin-legend-marker" style="background:#facc15"></div> 20-29% margin</div>';
-    html += '<div class="pin-legend-item"><div class="pin-legend-marker" style="background:#ef4444"></div> Under 20% margin</div>';
+    html += '<div class="pin-legend-item"><div class="pin-legend-marker" style="background:#9ca3af"></div> Under 20% margin</div>';
   }
   
   // Show BTR legend if Build to Rent layer is on
@@ -2207,6 +2207,19 @@ function updatePinLegend(){
 // ══════════════════════════════════════════
 //  DEAL ASSUMPTIONS MODAL
 // ══════════════════════════════════════════
+
+// ── Onboarding ──
+const ONBOARD_KEY = 'sb1123_onboarded';
+function showOnboardingIfNeeded(){
+  if(localStorage.getItem(ONBOARD_KEY)) return;
+  const tip = document.getElementById('onboarding-tip');
+  if(tip) tip.style.display = 'block';
+}
+function dismissOnboarding(){
+  localStorage.setItem(ONBOARD_KEY, '1');
+  const tip = document.getElementById('onboarding-tip');
+  if(tip) tip.style.display = 'none';
+}
 
 function openAssumptionsModal(){
   document.getElementById('assumptionsModal').classList.add('active');
@@ -2337,16 +2350,7 @@ function applyPreset(name){
   document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
   if(event && event.target) event.target.closest('.preset-btn').classList.add('active');
 
-  if(name === 'sweet'){
-    // Sweet spot: 12-18K SF lots = 10 townhomes, efficient build
-    setFilter('lot', 12000, 18000);
-  } else if(name === 'maxDensity'){
-    // Max density: 15-40K SF lots, all 10 units
-    setFilter('lot', 15000, 40000);
-  } else if(name === 'value'){
-    // Below-market land acquisition — sort by margin
-    currentSort = {key:'estMargin', dir:'desc'};
-  } else if(name === 'stale'){
+  if(name === 'stale'){
     // Stale inventory — negotiation leverage
     currentSort = {key:'dom', dir:'desc'};
   } else if(name === 'newThisWeek'){
@@ -2383,34 +2387,26 @@ function setFilter(key, min, max){
 // ── Stats ──
 function updateStats(){
   const filtered = getFilteredListings();
-  const margins = filtered.map(l=>l.estMargin||0);
-  const ppus = filtered.filter(l=>l.pricePerUnit>0).map(l=>l.pricePerUnit).sort((a,b)=>a-b);
-  const ppsfs = filtered.map(l=>l.ppsf).sort((a,b)=>a-b);
 
-  const sb1123 = filtered.filter(l=>l.sb1123Eligible);
-  document.getElementById('sb1123Count').textContent = sb1123.length.toLocaleString();
-  document.getElementById('avgMargin').textContent = margins.length ? Math.round(margins.reduce((a,b)=>a+b,0)/margins.length)+'%' : '0%';
-  document.getElementById('totalListings').textContent = filtered.length.toLocaleString();
-  document.getElementById('medPpu').textContent = ppus.length ? '$'+(ppus[Math.floor(ppus.length/2)]).toLocaleString() : '$0';
-  document.getElementById('medPpsf').textContent = ppsfs.length ? '$'+ppsfs[Math.floor(ppsfs.length/2)] : '$0';
-
-  // New listing counts
-  const newListings = filtered.filter(l=>l.isNew);
-  const newWeekListings = filtered.filter(l=>l.isNewThisWeek);
-  document.getElementById('newCount').textContent = newListings.length;
-  document.getElementById('newWeekCount').textContent = newWeekListings.length;
+  // Listing count in layers panel
+  const listingCountEl = document.getElementById('listingCount');
+  if(listingCountEl) listingCountEl.textContent = filtered.length.toLocaleString();
 
   // Comp stats
   const compFiltered = getFilteredComps();
-  document.getElementById('compCount').textContent = compFiltered.length.toLocaleString();
+  const compCountEl = document.getElementById('compCount');
+  if(compCountEl) compCountEl.textContent = compFiltered.length.toLocaleString();
+
   updatePeekStats();
 }
 
 function updateFilterCount(){
   const comps = getFilteredComps().length;
   const listings = getFilteredListings().length;
-  document.getElementById('filterCount').textContent = `${comps.toLocaleString()} comps | ${listings.toLocaleString()} listings`;
-  document.getElementById('listingPanelCount').textContent = `${listings} deals`;
+  const fc = document.getElementById('filterCount');
+  if(fc) fc.textContent = `${comps.toLocaleString()} comps | ${listings.toLocaleString()} listings`;
+  const lpc = document.getElementById('listingPanelCount');
+  if(lpc) lpc.textContent = `${listings} deals`;
 }
 
 function rebuildZoneToggles(){
@@ -2837,8 +2833,12 @@ function updatePeekStats() {
   var el = document.getElementById('peekEligible');
   var ml = document.getElementById('peekMargin');
   if (!el || !ml) return;
-  el.textContent = document.getElementById('sb1123Count').textContent;
-  ml.textContent = document.getElementById('avgMargin').textContent;
+  var filtered = getFilteredListings();
+  var eligible = filtered.filter(function(l){ return l.sb1123Eligible; });
+  var positiveMargin = eligible.filter(function(l){ return l.estMargin > 0; });
+  var avgM = positiveMargin.length ? Math.round(positiveMargin.reduce(function(s,l){ return s+l.estMargin; },0)/positiveMargin.length) : 0;
+  el.textContent = eligible.length;
+  ml.textContent = avgM + '%';
 }
 
 function rebuildMobileCards(sorted) {
