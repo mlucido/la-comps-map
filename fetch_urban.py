@@ -25,7 +25,7 @@ import requests
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # ── Config ──
-TIGERWEB_URL = "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Urban/MapServer/0/query"
+TIGERWEB_URL = "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Urban/MapServer/2/query"
 OUTPUT_FILE = "urban.json"
 CHECKPOINT_EVERY = 500
 MAX_WORKERS = 10
@@ -43,7 +43,7 @@ def query_urban(lat, lng, retries=2):
         "geometryType": "esriGeometryPoint",
         "inSR": 4326,
         "spatialRel": "esriSpatialRelIntersects",
-        "outFields": "NAME,UATYP10",
+        "outFields": "NAME,GEOID",
         "returnGeometry": "false",
         "f": "json",
     }
@@ -126,36 +126,36 @@ def main():
     if total == 0:
         print("  All listings already cached!")
     else:
-        print(f"  Checking urban area status for {total:,} listings...")
-        fetched = 0
+        print(f"  Checking urban area status for {total:,} listings ({MAX_WORKERS} workers)...")
         urban_count = 0
         non_urban_count = 0
         failed = 0
+        done = 0
 
-        for i, item in enumerate(work):
-            key = f"{item['lat']},{item['lng']}"
-            result = query_urban(item["lat"], item["lng"])
+        def process(item):
+            return (f"{item['lat']},{item['lng']}", query_urban(item["lat"], item["lng"]))
 
-            if result is True:
-                cache[key] = True
-                urban_count += 1
-            elif result is False:
-                cache[key] = False
-                non_urban_count += 1
-            else:
-                failed += 1
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
+            futures = {pool.submit(process, item): item for item in work}
+            for future in as_completed(futures):
+                key, result = future.result()
+                done += 1
 
-            fetched += 1
+                if result is True:
+                    cache[key] = True
+                    urban_count += 1
+                elif result is False:
+                    cache[key] = False
+                    non_urban_count += 1
+                else:
+                    failed += 1
 
-            if (i + 1) % 50 == 0 or i == total - 1:
-                print(f"  [{i+1}/{total}] urban={urban_count} non-urban={non_urban_count} failed={failed}")
+                if done % 200 == 0 or done == total:
+                    print(f"  [{done}/{total}] urban={urban_count} non-urban={non_urban_count} failed={failed}")
 
-            # Checkpoint
-            if fetched % CHECKPOINT_EVERY == 0:
-                save_cache(cache)
-                print(f"  Checkpoint: {len(cache):,} entries saved")
-
-            time.sleep(RATE_LIMIT_DELAY)
+                if done % CHECKPOINT_EVERY == 0:
+                    save_cache(cache)
+                    print(f"  Checkpoint: {len(cache):,} entries saved")
 
         save_cache(cache)
         print(f"\nDone! urban={urban_count} non-urban={non_urban_count} failed={failed}")
