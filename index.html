@@ -602,11 +602,6 @@ window.LOADED_LISTINGS = window.LOADED_LISTINGS || [];
 
   <!-- SB9 Mode -->
   <div class="section">
-    <button class="mode-toggle active" id="sb1123Toggle" onclick="toggle1123Mode()">
-      <div class="toggle-track"><div class="toggle-thumb"></div></div>
-      <span class="toggle-label">SB 1123 Eligible Only</span>
-      <span class="toggle-count" id="sb1123ToggleCount">0</span>
-    </button>
     <div class="preset-row" style="margin-top:8px">
       <button class="preset-btn" onclick="applyPreset('sweet')">Sweet Spot<br><span style="font-size:9px;color:var(--text-dim)">12-18K lot, 10 units</span></button>
       <button class="preset-btn" onclick="applyPreset('maxDensity')">Max Density<br><span style="font-size:9px;color:var(--text-dim)">15-25K lot, 10 units</span></button>
@@ -2048,12 +2043,6 @@ function refreshVisibility(){
 //  UI CONTROLS
 // ══════════════════════════════════════════
 
-function toggle1123Mode(){
-  sb1123Mode = !sb1123Mode;
-  document.getElementById('sb1123Toggle').classList.toggle('active', sb1123Mode);
-  applyFilters();
-}
-
 function toggleZone(zone,enabled){
   zoneState[zone]=enabled;
   applyFilters();
@@ -2130,7 +2119,6 @@ function applyPreset(name){
   resetFilter('all');
   sb1123Mode = true;
   newThisWeekFilter = false;
-  document.getElementById('sb1123Toggle').classList.add('active');
 
   document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
   event.target.closest('.preset-btn').classList.add('active');
@@ -2183,8 +2171,6 @@ function updateStats(){
   document.getElementById('totalListings').textContent = filtered.length.toLocaleString();
   document.getElementById('medPpu').textContent = ppus.length ? '$'+(ppus[Math.floor(ppus.length/2)]).toLocaleString() : '$0';
   document.getElementById('medPpsf').textContent = ppsfs.length ? '$'+ppsfs[Math.floor(ppsfs.length/2)] : '$0';
-
-  document.getElementById('sb1123ToggleCount').textContent = LISTINGS.filter(l=>l.sb1123Eligible).length;
 
   // New listing counts
   const newListings = filtered.filter(l=>l.isNew);
@@ -2394,9 +2380,7 @@ function applyFilters(){
 function resetFilter(key){
   if(key==='all'){
     ['price','psf','sqft','lot','slope'].forEach(k=>resetFilter(k));
-    sb1123Mode=false;
     newThisWeekFilter=false;
-    document.getElementById('sb1123Toggle').classList.remove('active');
     document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
     return;
   }
