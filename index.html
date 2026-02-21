@@ -346,7 +346,7 @@ window.LOADED_LISTINGS = window.LOADED_LISTINGS || [];
     color:var(--text);font-family:inherit;font-size:11px;cursor:pointer;transition:all 0.15s;
   }
   .fav-toggle:hover:not(:disabled){border-color:var(--accent)}
-  .fav-toggle:disabled{opacity:0.4;cursor:not-allowed;border-color:transparent}
+  .fav-toggle:disabled{opacity:0.4;cursor:not-allowed;border-color:transparent;pointer-events:none}
   .fav-toggle.active{border-color:#facc15;background:rgba(250,204,21,0.08)}
   .fav-toggle .fav-count{margin-left:auto;font-family:'JetBrains Mono',monospace;color:#facc15;font-size:10px}
   .popup-notes{width:100%;margin-top:8px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:11px;resize:vertical;min-height:40px;max-height:100px}
@@ -1068,10 +1068,9 @@ function sharePin(lat,lng,event){
   });
 }
 function toggleFavoritesFilter(){
+  // Guard: check actual count, not just btn.disabled (inline onclick can fire on some browsers)
+  if(Object.keys(loadFavorites()).length === 0) return;
   const btn = document.getElementById('favToggle');
-  // Don't toggle if button is disabled (0 saved deals)
-  if(btn.disabled) return;
-  
   favoritesOnly=!favoritesOnly;
   if(favoritesOnly){
     btn.classList.add('active');
