@@ -556,6 +556,7 @@ function init() {
   // Parse both datasets
   laComps = parseAndFilter(LOADED_COMPS || []);
   sdComps = parseAndFilter(LOADED_COMPS_SD || []);
+  console.log(`Analytics init — LA: ${laComps.length} comps, SD: ${sdComps.length} comps`);
   allComps = getActiveComps(state.region);
 
   // Init map
@@ -571,11 +572,16 @@ function init() {
     state.region = e.target.value;
     state.selectedArea = null;
     allComps = getActiveComps(state.region);
+    // SD median ppsf is ~$590 vs LA ~$700, adjust min filter per region
+    const defaultMin = state.region === 'la' ? 600 : state.region === 'sd' ? 400 : 400;
+    state.minPpsf = defaultMin;
+    document.getElementById('filterMinPpsf').value = String(defaultMin);
     const rc = REGION_CONFIG[state.region];
     map.setView(rc.center, rc.zoom);
     document.getElementById('navSubtitle').textContent = 'Trailing 12-Month Sold Comps · ' + rc.label;
     document.getElementById('mapInfo').textContent = 'Click a bubble to filter';
     tableLimit = 100;
+    console.log(`Region: ${state.region}, comps: ${allComps.length}, after filter: ${getFiltered().length}`);
     update();
   });
 
@@ -890,8 +896,11 @@ function renderTable(data) {
 
 // ─── Boot ───
 window.addEventListener('load', () => {
-  const hasLA = typeof LOADED_COMPS !== 'undefined' && LOADED_COMPS.length > 0;
-  const hasSD = typeof LOADED_COMPS_SD !== 'undefined' && LOADED_COMPS_SD.length > 0;
+  const laRaw = (typeof LOADED_COMPS !== 'undefined') ? LOADED_COMPS : [];
+  const sdRaw = (typeof LOADED_COMPS_SD !== 'undefined') ? LOADED_COMPS_SD : [];
+  const hasLA = laRaw.length > 0;
+  const hasSD = sdRaw.length > 0;
+  console.log(`Boot — LA raw: ${laRaw.length}, SD raw: ${sdRaw.length}`);
   if (!hasLA && !hasSD) {
     document.getElementById('loadingOverlay').innerHTML = '<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:#1e293b;margin-bottom:8px">No data loaded</div><div style="color:#64748b">data.js not found or empty. <a href="index.html" style="color:#3b82f6">Return to Deal Finder</a></div></div>';
     return;
@@ -901,9 +910,15 @@ window.addEventListener('load', () => {
     state.region = 'sd';
     document.getElementById('filterRegion').value = 'sd';
   }
-  // Update loading text with counts
-  const sdLabel = hasSD ? ` + ${LOADED_COMPS_SD.length.toLocaleString()} SD` : '';
-  document.querySelector('.loading-text').textContent = `Loaded ${(LOADED_COMPS||[]).length.toLocaleString()} LA${sdLabel} comps`;
+  // Update dropdown labels with comp counts
+  const sel = document.getElementById('filterRegion');
+  sel.options[0].textContent = `LA County (${laRaw.length.toLocaleString()})`;
+  sel.options[1].textContent = hasSD ? `San Diego County (${sdRaw.length.toLocaleString()})` : 'San Diego County (no data)';
+  sel.options[2].textContent = `Both Markets (${(laRaw.length + sdRaw.length).toLocaleString()})`;
+  if (!hasSD) sel.options[1].disabled = true;
+  // Update loading text
+  const sdLabel = hasSD ? ` + ${sdRaw.length.toLocaleString()} SD` : '';
+  document.querySelector('.loading-text').textContent = `Loaded ${laRaw.length.toLocaleString()} LA${sdLabel} comps`;
   init();
 });
 </script>
