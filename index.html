@@ -1031,7 +1031,7 @@ window.LOADED_LISTINGS = window.LOADED_LISTINGS || [];
           </div>
           <div class="proforma-group">
             <label>Cap Rate</label>
-            <input type="number" id="btrCapRate" value="0.05" step="0.005" onchange="onProformaChange()">
+            <input type="number" id="btrCapRate" value="0.055" step="0.005" onchange="onProformaChange()">
           </div>
           <div class="proforma-group">
             <label>Refi LTV</label>
@@ -1539,7 +1539,7 @@ function calculateBTRProForma(l){
   const newConPremium = parseFloat((document.getElementById('btrPremium')||{}).value) || 1.25;
   const vacancyRate = parseFloat((document.getElementById('btrVacancy')||{}).value) || 0.04;
   const opexRatio = parseFloat((document.getElementById('btrOpex')||{}).value) || 0.30;
-  const capRate = parseFloat((document.getElementById('btrCapRate')||{}).value) || 0.05;
+  const capRate = parseFloat((document.getElementById('btrCapRate')||{}).value) || 0.055;
   const refiLTV = parseFloat((document.getElementById('btrLTV')||{}).value) || 0.70;
   const refiRate = parseFloat((document.getElementById('btrRate')||{}).value) || 0.0625;
   const minYOC = parseFloat((document.getElementById('btrMinYOC')||{}).value) || 0.04;
@@ -1827,11 +1827,12 @@ function rebuildListings(){
         <div><div class="popup-label">Est. Rent/Unit</div><div class="popup-value">$${btr.rentPerUnit.toLocaleString()}/mo <small style="color:var(--text-dim)">(×${btr.newConPremium})</small></div></div>
         <div><div class="popup-label">Gross Annual</div><div class="popup-value">$${Math.round(btr.grossAnnualRent).toLocaleString()} <small style="color:var(--text-dim)">(${btr.units}u)</small></div></div>
         <div><div class="popup-label">NOI</div><div class="popup-value">$${Math.round(btr.annualNOI).toLocaleString()}</div></div>
+        <div><div class="popup-label">OpEx</div><div class="popup-value">${Math.round(btr.opexRatio*100)}% <small style="color:var(--text-dim)">($${Math.round(btr.effectiveGrossIncome*btr.opexRatio).toLocaleString()}/yr)</small></div></div>
         <div><div class="popup-label">YOC</div><div class="popup-value" style="color:${btr.yieldOnCost>=btr.minYOC?'var(--green)':btr.yieldOnCost>=btr.minYOC*0.8?'var(--yellow)':'var(--red)'}">${(btr.yieldOnCost*100).toFixed(1)}%</div></div>
         ` : ''}
         ${btr.btrPencils ? `
         <div><div class="popup-label">Stabilized Val</div><div class="popup-value">$${(btr.stabilizedValue/1000000).toFixed(2)}M</div></div>
-        <div><div class="popup-label">Refi</div><div class="popup-value">$${(btr.loanAmount/1000000).toFixed(2)}M → ${btr.dscr.toFixed(2)}x</div></div>
+        <div><div class="popup-label">Refi</div><div class="popup-value">$${(btr.loanAmount/1000000).toFixed(2)}M → <span style="color:${btr.dscr>=1.25?'var(--green)':btr.dscr>=1.15?'var(--yellow)':'var(--red)'}">${btr.dscr.toFixed(2)}x DSCR</span></div></div>
         <div><div class="popup-label">Cash Flow</div><div class="popup-value" style="color:${btr.cashFlow>=0?'var(--green)':'var(--red)'}">$${Math.round(btr.cashFlow).toLocaleString()}/yr</div></div>
         <div><div class="popup-label">CoC Return</div><div class="popup-value" style="color:${btr.cashOnCash>=0.08?'var(--green)':btr.cashOnCash>=0?'var(--yellow)':'var(--red)'}">${(btr.cashOnCash*100).toFixed(1)}%</div></div>
         <div><div class="popup-label">Cash-out</div><div class="popup-value" style="color:${btr.cashOutRefi>=0?'var(--green)':'var(--red)'}">${btr.cashOutRefi>=0?'$'+Math.round(btr.cashOutRefi).toLocaleString():'($'+Math.round(Math.abs(btr.cashOutRefi)).toLocaleString()+')'}</div></div>
@@ -1888,7 +1889,9 @@ function buildBTRLayer(){
 
     let popupHTML = `
       ${l.burnZone ? '<div class="popup-badge" style="background:#dc2626;color:#fff;font-weight:700;padding:4px 10px">&#128293; BURN ZONE — '+l.burnZone+' Fire (Jan 2025)</div>' : ''}
-      <div class="popup-badge" style="background:rgba(245,158,11,0.2);color:#f59e0b">&#9670; BTR-ONLY OPPORTUNITY</div>
+      ${(l.estMargin||0) <= 0
+        ? '<div class="popup-badge" style="background:rgba(245,158,11,0.2);color:#f59e0b">&#9670; BTR-ONLY OPPORTUNITY</div>'
+        : '<div class="popup-badge" style="background:rgba(234,179,8,0.15);color:#eab308">&#9670; BTR PREFERRED</div>'}
       ${l.isNew ? '<div class="popup-badge" style="background:rgba(34,197,94,0.2);color:#22c55e">NEW LISTING</div>' : l.isNewThisWeek ? '<div class="popup-badge" style="background:rgba(14,165,233,0.2);color:#0ea5e9">NEW THIS WEEK</div>' : ''}
       <div class="popup-title">${l.address || 'N/A'}</div>
 
@@ -1914,10 +1917,11 @@ function buildBTRLayer(){
         <div><div class="popup-label">Est. Rent/Unit</div><div class="popup-value">$${btr.rentPerUnit.toLocaleString()}/mo <small style="color:var(--text-dim)">(FMR × ${btr.newConPremium})</small></div></div>
         <div><div class="popup-label">Gross Annual Rent</div><div class="popup-value">$${Math.round(btr.grossAnnualRent).toLocaleString()} <small style="color:var(--text-dim)">(${btr.units} units)</small></div></div>
         <div><div class="popup-label">NOI</div><div class="popup-value">$${Math.round(btr.annualNOI).toLocaleString()} <small style="color:var(--text-dim)">(${Math.round((1-btr.vacancyRate)*(1-btr.opexRatio)*100)}% of gross)</small></div></div>
+        <div><div class="popup-label">OpEx</div><div class="popup-value">${Math.round(btr.opexRatio*100)}% <small style="color:var(--text-dim)">($${Math.round(btr.effectiveGrossIncome*btr.opexRatio).toLocaleString()}/yr)</small></div></div>
         <div><div class="popup-label">Yield on Cost</div><div class="popup-value" style="color:${btr.yieldOnCost>=btr.minYOC?'var(--green)':btr.yieldOnCost>=btr.minYOC*0.8?'var(--yellow)':'var(--red)'}">${(btr.yieldOnCost*100).toFixed(1)}%</div></div>
-        <div><div class="popup-label">Stabilized Value</div><div class="popup-value">$${(btr.stabilizedValue/1000000).toFixed(2)}M @ ${(btr.capRate*100).toFixed(0)}% cap</div></div>
+        <div><div class="popup-label">Stabilized Value</div><div class="popup-value">$${(btr.stabilizedValue/1000000).toFixed(2)}M @ ${(btr.capRate*100).toFixed(1)}% cap</div></div>
         <div><div class="popup-label">Total Cost</div><div class="popup-value">$${Math.round(btr.totalCost).toLocaleString()}</div></div>
-        <div><div class="popup-label">Refi (${Math.round(btr.refiLTV*100)}% LTV)</div><div class="popup-value">$${(btr.loanAmount/1000000).toFixed(2)}M → DSCR ${btr.dscr.toFixed(2)}</div></div>
+        <div><div class="popup-label">Refi (${Math.round(btr.refiLTV*100)}% LTV)</div><div class="popup-value">$${(btr.loanAmount/1000000).toFixed(2)}M → <span style="color:${btr.dscr>=1.25?'var(--green)':btr.dscr>=1.15?'var(--yellow)':'var(--red)'}">DSCR ${btr.dscr.toFixed(2)}</span></div></div>
         <div><div class="popup-label">Annual Cash Flow</div><div class="popup-value" style="color:${btr.cashFlow>=0?'var(--green)':'var(--red)'}">$${Math.round(btr.cashFlow).toLocaleString()}</div></div>
         <div><div class="popup-label">Cash-on-Cash Return</div><div class="popup-value" style="color:${btr.cashOnCash>=0.08?'var(--green)':btr.cashOnCash>=0?'var(--yellow)':'var(--red)'}">${(btr.cashOnCash*100).toFixed(1)}%</div></div>
         <div><div class="popup-label">Cash-out at Refi</div><div class="popup-value" style="color:${btr.cashOutRefi>=0?'var(--green)':'var(--red)'}">${btr.cashOutRefi>=0?'$'+Math.round(btr.cashOutRefi).toLocaleString():'($'+Math.round(Math.abs(btr.cashOutRefi)).toLocaleString()+') shortfall'}</div></div>
@@ -2296,11 +2300,12 @@ function buildOffMarketLayer(){
         <div><div class="popup-label">Est. Rent/Unit</div><div class="popup-value">$${btr.rentPerUnit.toLocaleString()}/mo <small style="color:var(--text-dim)">(FMR × ${btr.newConPremium})</small></div></div>
         <div><div class="popup-label">Gross Annual Rent</div><div class="popup-value">$${Math.round(btr.grossAnnualRent).toLocaleString()} <small style="color:var(--text-dim)">(${btr.units} units)</small></div></div>
         <div><div class="popup-label">NOI</div><div class="popup-value">$${Math.round(btr.annualNOI).toLocaleString()} <small style="color:var(--text-dim)">(${Math.round((1-btr.vacancyRate)*(1-btr.opexRatio)*100)}% of gross)</small></div></div>
+        <div><div class="popup-label">OpEx</div><div class="popup-value">${Math.round(btr.opexRatio*100)}% <small style="color:var(--text-dim)">($${Math.round(btr.effectiveGrossIncome*btr.opexRatio).toLocaleString()}/yr)</small></div></div>
         <div><div class="popup-label">Yield on Cost</div><div class="popup-value" style="color:${btr.yieldOnCost>=btr.minYOC?'var(--green)':btr.yieldOnCost>=btr.minYOC*0.8?'var(--yellow)':'var(--red)'}">${(btr.yieldOnCost*100).toFixed(1)}%</div></div>
         ` : ''}
         ${btr.btrPencils ? `
-        <div><div class="popup-label">Stabilized Value</div><div class="popup-value">$${(btr.stabilizedValue/1000000).toFixed(2)}M @ ${(btr.capRate*100).toFixed(0)}% cap</div></div>
-        <div><div class="popup-label">Refi (${Math.round(btr.refiLTV*100)}% LTV)</div><div class="popup-value">$${(btr.loanAmount/1000000).toFixed(2)}M → DSCR ${btr.dscr.toFixed(2)}</div></div>
+        <div><div class="popup-label">Stabilized Value</div><div class="popup-value">$${(btr.stabilizedValue/1000000).toFixed(2)}M @ ${(btr.capRate*100).toFixed(1)}% cap</div></div>
+        <div><div class="popup-label">Refi (${Math.round(btr.refiLTV*100)}% LTV)</div><div class="popup-value">$${(btr.loanAmount/1000000).toFixed(2)}M → <span style="color:${btr.dscr>=1.25?'var(--green)':btr.dscr>=1.15?'var(--yellow)':'var(--red)'}">DSCR ${btr.dscr.toFixed(2)}</span></div></div>
         <div><div class="popup-label">Annual Cash Flow</div><div class="popup-value" style="color:${btr.cashFlow>=0?'var(--green)':'var(--red)'}">$${Math.round(btr.cashFlow).toLocaleString()}</div></div>
         <div><div class="popup-label">Cash-on-Cash Return</div><div class="popup-value" style="color:${btr.cashOnCash>=0.08?'var(--green)':btr.cashOnCash>=0?'var(--yellow)':'var(--red)'}">${(btr.cashOnCash*100).toFixed(1)}%</div></div>
         <div><div class="popup-label">Cash-out at Refi</div><div class="popup-value" style="color:${btr.cashOutRefi>=0?'var(--green)':'var(--red)'}">${btr.cashOutRefi>=0?'$'+Math.round(btr.cashOutRefi).toLocaleString():'($'+Math.round(Math.abs(btr.cashOutRefi)).toLocaleString()+') shortfall'}</div></div>
