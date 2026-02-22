@@ -973,6 +973,14 @@ window.LOADED_LISTINGS = window.LOADED_LISTINGS || [];
           <label>Carry Rate %</label>
           <input type="number" id="pfCarryRate" value="9" step="0.5" onchange="onProformaChange()">
         </div>
+        <div class="proforma-group">
+          <label>Insurance $</label>
+          <input type="number" id="pfInsurance" value="40000" step="5000" onchange="onProformaChange()">
+        </div>
+        <div class="proforma-group">
+          <label>Origination %</label>
+          <input type="number" id="pfOrigination" value="1" step="0.25" onchange="onProformaChange()">
+        </div>
       </div>
       <p style="font-size:10px;color:var(--text-dim);margin-top:12px;line-height:1.4">
         SB 1123 ground-up: demolish existing, build all new townhome units.
@@ -1152,7 +1160,9 @@ let proforma = {
   fixedDispositionCosts: 40000, // Fixed per-project: legal, marketing, staging
   demoCost: 55000,       // Demolition of existing structure
   holdMonths: 24,        // Construction + sale hold period
-  carryRatePct: 9,       // Annual carry rate on outstanding capital
+  carryRatePct: 9,       // Annual carry rate on construction loan
+  insurance: 40000,      // Builder's risk insurance for hold period
+  originationPct: 1,     // Loan origination fee as % of construction loan
 };
 
 // ── Map ──
@@ -1369,13 +1379,16 @@ function calculateProForma(l){
 
   const acquisition = l.price;
   const demo = l.sqft > 0 ? pf.demoCost : 0;
-  const totalBuildCost = maxUnits * pf.avgUnitSf * adjBuildCostPerSf + demo;
+  const constructionCost = maxUnits * pf.avgUnitSf * adjBuildCostPerSf;
+  const totalBuildCost = constructionCost + demo;
 
-  // Carry costs: loan interest on avg outstanding + prop tax during hold
-  const avgOutstanding = acquisition + totalBuildCost * 0.5;
-  const carryInterest = avgOutstanding * (pf.carryRatePct / 100) * (pf.holdMonths / 12);
+  // Carry costs: interest on construction loan only (cash acquisition)
+  const avgLoanOutstanding = totalBuildCost * 0.5;
+  const carryInterest = avgLoanOutstanding * (pf.carryRatePct / 100) * (pf.holdMonths / 12);
   const carryPropTax = acquisition * 0.011 * (pf.holdMonths / 12);
-  const totalCarry = carryInterest + carryPropTax;
+  const insurance = pf.insurance || 40000;
+  const originationFee = totalBuildCost * ((pf.originationPct || 1) / 100);
+  const totalCarry = carryInterest + carryPropTax + insurance + originationFee;
 
   const totalCost = acquisition + totalBuildCost + totalCarry;
   const profit = netRevenue - totalCost;
@@ -1383,14 +1396,21 @@ function calculateProForma(l){
 
   const land_basis_psf = effective_buildable_sf > 0 ? (l.price / effective_buildable_sf) : 0;
 
+  // Max offer at 30% margin: work backwards from target margin
   const target_margin = 0.30;
   const exit_psf = valuePerSf;
-  const net_revenue_psf = exit_psf * (1 - pf.txnCostPct/100) - pf.fixedDispositionCosts / effective_buildable_sf;
-  const target_all_in_psf = net_revenue_psf * (1 - target_margin);
-  const target_land_basis_psf = target_all_in_psf - adjBuildCostPerSf;
-  const target_buy_price = target_land_basis_psf * effective_buildable_sf;
-  const headroom = target_buy_price - l.price;
-  const headroom_pct = l.price > 0 ? ((headroom / l.price) * 100) : 0;
+  // Net revenue = gross * (1 - txn%) - fixedDisp
+  // Total cost = acquisition + build + carry(build-only interest) + propTax(acq) + insurance + origination
+  // For max offer, we solve: profit/netRevenue = 0.30 → totalCost = netRevenue * 0.70
+  // Simplified: max_acq = netRevenue*0.70 - build - carry_on_build - propTax_factor*max_acq - insurance - origination
+  // Since propTax depends on acq, iterate or approximate
+  const nr = exit_psf * effective_buildable_sf * (1 - pf.txnCostPct/100) - pf.fixedDispositionCosts;
+  const target_total_cost = nr * (1 - target_margin);
+  const build_carry = avgLoanOutstanding * (pf.carryRatePct / 100) * (pf.holdMonths / 12);
+  const build_plus_soft = totalBuildCost + build_carry + insurance + originationFee;
+  // max_acq + max_acq * propTaxRate * holdYears = target_total_cost - build_plus_soft
+  const propTaxFactor = 0.011 * (pf.holdMonths / 12);
+  const max_offer = (target_total_cost - build_plus_soft) / (1 + propTaxFactor);
 
   const lot_efficiency = (l.lotSf * 1.25) > 0 ? (effective_buildable_sf / (l.lotSf * 1.25)) : 0;
   const return_on_cost = totalCost > 0 ? ((profit / totalCost) * 100) : 0;
@@ -1401,27 +1421,24 @@ function calculateProForma(l){
     netRevenue,
     acquisition,
     demo,
+    constructionCost,
     totalBuildCost,
     totalCost,
     profit,
-    margin: margin_on_revenue,  // Keep existing for compatibility
+    margin: margin_on_revenue,
     margin_on_revenue,
     return_on_cost,
     pricePerUnit: Math.round(acquisition / maxUnits),
-    guaranteedFAR: getGuaranteedFAR(maxUnits),
-    buildableSf: Math.round(l.lotSf * getGuaranteedFAR(maxUnits)),
-    // NEW v2 metrics
     effective_buildable_sf: Math.round(effective_buildable_sf),
     land_basis_psf: Math.round(land_basis_psf),
-    target_buy_price: Math.round(target_buy_price),
-    headroom: Math.round(headroom),
-    headroom_pct,
+    max_offer: Math.round(max_offer),
     lot_efficiency,
-    // v3: carry + slope
     adjBuildCostPerSf,
     totalCarry: Math.round(totalCarry),
     carryInterest: Math.round(carryInterest),
     carryPropTax: Math.round(carryPropTax),
+    insurance: Math.round(insurance),
+    originationFee: Math.round(originationFee),
   };
 }
 
@@ -1436,11 +1453,13 @@ function calculateBTRProForma(l){
   const acquisition = l.price;
   const demo = l.sqft > 0 ? pf.demoCost : 0;
   const totalBuildCost = maxUnits * pf.avgUnitSf * adjBuildCostPerSf + demo;
-  // Carry costs
-  const avgOutstanding = acquisition + totalBuildCost * 0.5;
-  const carryInterest = avgOutstanding * (pf.carryRatePct / 100) * (pf.holdMonths / 12);
+  // Carry costs: interest on construction loan only (cash acquisition)
+  const avgLoanOutstanding = totalBuildCost * 0.5;
+  const carryInterest = avgLoanOutstanding * (pf.carryRatePct / 100) * (pf.holdMonths / 12);
   const carryPropTax = acquisition * 0.011 * (pf.holdMonths / 12);
-  const totalCarry = carryInterest + carryPropTax;
+  const btrInsurance = pf.insurance || 40000;
+  const btrOrigination = totalBuildCost * ((pf.originationPct || 1) / 100);
+  const totalCarry = carryInterest + carryPropTax + btrInsurance + btrOrigination;
   const totalCost = acquisition + totalBuildCost + totalCarry;
   
   // BTR-specific assumptions (from spec)
@@ -1639,42 +1658,41 @@ function rebuildListings(){
         ${l.lotSf&&l.sqft?`<div><div class="popup-label">Current Density</div><div class="popup-value">${(l.sqft/l.lotSf).toFixed(2)}</div></div>`:'<div></div>'}
 
         <div class="popup-divider"></div>
-        <div class="popup-section-label">DEVELOPMENT PRO FORMA — ${pf.maxUnits} Townhomes • ${pf.guaranteedFAR}x FAR (${pf.buildableSf.toLocaleString()} sf) • Exit $${(l.newconPpsf||l.exitPsf||0)}/sf ${l.newconPpsf?'<span style="color:var(--accent)">(new-con)</span>':'<span style="color:var(--text-dim)">(all sales)</span>'}</div>
+        <div class="popup-section-label">DEVELOPMENT PRO FORMA — ${pf.maxUnits} Townhomes • ${pf.effective_buildable_sf.toLocaleString()} SF • Exit $${(l.newconPpsf||l.exitPsf||0)}/sf ${l.newconPpsf?'<span style="color:var(--accent)">(new-con)</span>':'<span style="color:var(--text-dim)">(all sales)</span>'}</div>
       </div>
 
       <div class="popup-grid-2">
         <div><div class="popup-label">Buy / Unit</div><div class="popup-value">$${pf.pricePerUnit.toLocaleString()}</div></div>
         <div><div class="popup-label">Total Cost</div><div class="popup-value">$${Math.round(pf.totalCost).toLocaleString()}</div></div>
-        
+
         <div><div class="popup-label">Land Basis / Product SF</div><div class="popup-value" style="color:${pf.land_basis_psf<120?'var(--green)':pf.land_basis_psf<=160?'var(--yellow)':'var(--red)'}">$${pf.land_basis_psf}/sf</div></div>
         <div><div class="popup-label">Effective Buildable SF</div><div class="popup-value">${pf.effective_buildable_sf.toLocaleString()} sf</div></div>
-        
+
         <div class="popup-divider"></div>
-        <div class="popup-section-label" style="color:var(--green)">Target Buy Price (30% Margin)</div>
-        
-        <div><div class="popup-label">Target Buy</div><div class="popup-value" style="color:var(--green)">$${pf.target_buy_price.toLocaleString()}</div></div>
-        <div><div class="popup-label">Asking Price</div><div class="popup-value">$${l.price.toLocaleString()}</div></div>
-        
-        <div><div class="popup-label">Headroom</div><div class="popup-value" style="color:${pf.headroom>=0?'var(--green)':pf.headroom_pct>=-15?'var(--yellow)':'var(--red)'};">${pf.headroom>=0?'+':''}$${pf.headroom.toLocaleString()} (${pf.headroom_pct.toFixed(1)}%)</div></div>
-        <div></div>
-        
+        <div class="popup-span-2" style="font-size:11px;font-weight:600;color:${pf.max_offer>=l.price?'var(--green)':'var(--red)'}">Max Offer @ 30% Margin: $${pf.max_offer.toLocaleString()}</div>
+        <div class="popup-span-2" style="font-size:10px;padding:3px 8px;border-radius:4px;background:${pf.max_offer>=l.price?'rgba(34,197,94,0.1)':'rgba(239,68,68,0.1)'};color:${pf.max_offer>=l.price?'var(--green)':'var(--red)'}">${pf.max_offer>=l.price?'&#9989; Asking price is $'+Math.round((pf.max_offer-l.price)/1000).toLocaleString()+'k below max offer':'&#10060; Asking price is $'+Math.round((l.price-pf.max_offer)/1000).toLocaleString()+'k above max offer'}</div>
+
         <div class="popup-divider"></div>
         <div class="popup-section-label">Economics</div>
 
         <div><div class="popup-label">Build $/SF${pf.adjBuildCostPerSf>proforma.allInBuildPsf?' <span style="color:var(--orange)">(slope adj)</span>':''}</div><div class="popup-value"${pf.adjBuildCostPerSf>proforma.allInBuildPsf?' style="color:var(--orange)"':''}>$${pf.adjBuildCostPerSf}/sf</div></div>
-        <div><div class="popup-label">Carry (${proforma.holdMonths}mo)</div><div class="popup-value">$${pf.totalCarry.toLocaleString()}</div></div>
+        <div><div class="popup-label">Construction</div><div class="popup-value">$${Math.round(pf.constructionCost).toLocaleString()}</div></div>
+        ${pf.demo>0?`<div><div class="popup-label">Demo</div><div class="popup-value">$${pf.demo.toLocaleString()}</div></div>`:''}
+        ${pf.demo>0?'<div></div>':''}
+        <div><div class="popup-label">Insurance</div><div class="popup-value">$${pf.insurance.toLocaleString()}</div></div>
+        <div><div class="popup-label">Loan Origination (${proforma.originationPct}%)</div><div class="popup-value">$${pf.originationFee.toLocaleString()}</div></div>
+        <div><div class="popup-label">Carry Interest (${proforma.holdMonths}mo)</div><div class="popup-value">$${pf.carryInterest.toLocaleString()}</div></div>
+        <div><div class="popup-label">Property Tax (${proforma.holdMonths}mo)</div><div class="popup-value">$${pf.carryPropTax.toLocaleString()}</div></div>
 
-        <div><div class="popup-label">Construction / Unit</div><div class="popup-value">$${Math.round(pf.totalBuildCost/pf.maxUnits).toLocaleString()}</div></div>
+        <div class="popup-divider"></div>
         <div><div class="popup-label">Net Revenue</div><div class="popup-value">$${Math.round(pf.netRevenue).toLocaleString()}</div></div>
-        
-        <div><div class="popup-label">Sell / Unit</div><div class="popup-value" style="color:var(--green)">$${Math.round(pf.netRevenue/pf.maxUnits).toLocaleString()}</div></div>
         <div><div class="popup-label">Est Profit</div><div class="popup-value ${pf.profit>=0?'popup-profit-positive':'popup-profit-negative'}">$${Math.round(pf.profit).toLocaleString()}</div></div>
-        
+
+        <div><div class="popup-label">Sell / Unit</div><div class="popup-value" style="color:var(--green)">$${Math.round(pf.netRevenue/pf.maxUnits).toLocaleString()}</div></div>
         <div><div class="popup-label">Profit / Unit</div><div class="popup-value ${pf.profit>=0?'popup-profit-positive':'popup-profit-negative'}">$${Math.round(pf.profit/pf.maxUnits).toLocaleString()}</div></div>
+
         <div><div class="popup-label">Return on Cost</div><div class="popup-value ${pf.return_on_cost>=0?'popup-profit-positive':'popup-profit-negative'}">${pf.return_on_cost.toFixed(1)}%</div></div>
-        
-        <div><div class="popup-label">Margin on Revenue</div><div class="popup-value ${pf.margin>=0?'popup-profit-positive':'popup-profit-negative'}">${pf.margin.toFixed(1)}%</div></div>
-        <div></div>
+        <div><div class="popup-label">Net Margin on Sale</div><div class="popup-value ${pf.margin>=0?'popup-profit-positive':'popup-profit-negative'}">${pf.margin.toFixed(1)}%<br><small style="color:var(--text-dim);font-weight:400">(Revenue−Cost)/Revenue</small></div></div>
 
         <div class="popup-divider"></div>
         <div class="popup-section-label">ZIMAS Due Diligence</div>
@@ -1807,21 +1825,18 @@ function buildBTRLayer(){
     if (l.sb1123Eligible) {
       popupHTML += `
         <div class="popup-divider"></div>
-        <div class="popup-section-label">DEVELOPMENT PRO FORMA — ${salePF.maxUnits} Townhomes • ${salePF.guaranteedFAR}x FAR (${salePF.buildableSf.toLocaleString()} sf) • Exit $${(l.newconPpsf||l.exitPsf||0)}/sf ${l.newconPpsf?'<span style="color:var(--accent)">(new-con)</span>':'<span style="color:var(--text-dim)">(all sales)</span>'}</div>
+        <div class="popup-section-label">DEVELOPMENT PRO FORMA — ${salePF.maxUnits} Townhomes • ${salePF.effective_buildable_sf.toLocaleString()} SF • Exit $${(l.newconPpsf||l.exitPsf||0)}/sf ${l.newconPpsf?'<span style="color:var(--accent)">(new-con)</span>':'<span style="color:var(--text-dim)">(all sales)</span>'}</div>
       </div>
-      
+
       <div class="popup-grid-2">
         <div><div class="popup-label">Buy / Unit</div><div class="popup-value">$${salePF.pricePerUnit.toLocaleString()}</div></div>
         <div><div class="popup-label">Total Cost</div><div class="popup-value">$${Math.round(salePF.totalCost).toLocaleString()}</div></div>
-        
-        <div><div class="popup-label">Construction / Unit</div><div class="popup-value">$${Math.round(salePF.totalBuildCost/salePF.maxUnits).toLocaleString()}</div></div>
+
         <div><div class="popup-label">Net Revenue</div><div class="popup-value">$${Math.round(salePF.netRevenue).toLocaleString()}</div></div>
-        
-        <div><div class="popup-label">Sell / Unit</div><div class="popup-value" style="color:var(--green)">$${Math.round(salePF.netRevenue/salePF.maxUnits).toLocaleString()}</div></div>
         <div><div class="popup-label">Est Profit</div><div class="popup-value ${salePF.profit>=0?'popup-profit-positive':'popup-profit-negative'}">$${Math.round(salePF.profit).toLocaleString()}</div></div>
-        
-        <div><div class="popup-label">Profit / Unit</div><div class="popup-value ${salePF.profit>=0?'popup-profit-positive':'popup-profit-negative'}">$${Math.round(salePF.profit/salePF.maxUnits).toLocaleString()}</div></div>
-        <div><div class="popup-label">Margin</div><div class="popup-value ${salePF.margin>=0?'popup-profit-positive':'popup-profit-negative'}">${salePF.margin.toFixed(1)}%</div></div>
+
+        <div><div class="popup-label">Return on Cost</div><div class="popup-value ${salePF.return_on_cost>=0?'popup-profit-positive':'popup-profit-negative'}">${salePF.return_on_cost.toFixed(1)}%</div></div>
+        <div><div class="popup-label">Net Margin on Sale</div><div class="popup-value ${salePF.margin>=0?'popup-profit-positive':'popup-profit-negative'}">${salePF.margin.toFixed(1)}%</div></div>
       `;
     }
     
@@ -2040,10 +2055,11 @@ function buildOffMarketLayer(){
     const gross_revenue = exit_psf * effective_buildable_sf;
     const net_revenue = gross_revenue * (1 - proforma.txnCostPct / 100) - proforma.fixedDispositionCosts;
     const total_build = adjBuildCostPerSf * maxUnits * proforma.avgUnitSf + (l.sqft > 0 ? proforma.demoCost : 0);
-    const avg_outstanding = est_offer + total_build * 0.5;
-    const carry_interest = avg_outstanding * (proforma.carryRatePct / 100) * (proforma.holdMonths / 12);
+    const carry_interest = (total_build * 0.5) * (proforma.carryRatePct / 100) * (proforma.holdMonths / 12);
     const carry_prop_tax = est_offer * 0.011 * (proforma.holdMonths / 12);
-    const total_carry = carry_interest + carry_prop_tax;
+    const f_insurance = proforma.insurance || 40000;
+    const f_origination = total_build * ((proforma.originationPct || 1) / 100);
+    const total_carry = carry_interest + carry_prop_tax + f_insurance + f_origination;
     const total_cost = est_offer + total_build + total_carry;
     const est_profit = net_revenue - total_cost;
     const margin_at_offer = net_revenue > 0 ? (est_profit / net_revenue) : 0;
@@ -2076,14 +2092,15 @@ function buildOffMarketLayer(){
     const gross_revenue = exit_psf * effective_buildable_sf;
     const net_revenue = gross_revenue * (1 - proforma.txnCostPct / 100) - proforma.fixedDispositionCosts;
     const total_build = adjBuildCostPerSf * maxUnits * proforma.avgUnitSf + (l.sqft > 0 ? proforma.demoCost : 0);
-    const avg_outstanding = est_offer + total_build * 0.5;
-    const carry_interest = avg_outstanding * (proforma.carryRatePct / 100) * (proforma.holdMonths / 12);
+    const carry_interest = (total_build * 0.5) * (proforma.carryRatePct / 100) * (proforma.holdMonths / 12);
     const carry_prop_tax = est_offer * 0.011 * (proforma.holdMonths / 12);
-    const total_carry = carry_interest + carry_prop_tax;
+    const om_insurance = proforma.insurance || 40000;
+    const om_origination = total_build * ((proforma.originationPct || 1) / 100);
+    const total_carry = carry_interest + carry_prop_tax + om_insurance + om_origination;
     const total_cost = est_offer + total_build + total_carry;
     const est_profit = net_revenue - total_cost;
     const margin_at_offer = net_revenue > 0 ? (est_profit / net_revenue) : 0;
-    
+
     const land_basis_psf = effective_buildable_sf > 0 ? (est_offer / effective_buildable_sf) : 0;
     
     const target_margin = 0.30;
@@ -2156,7 +2173,7 @@ function buildOffMarketLayer(){
         ${l.lotSf&&l.sqft?'<div><div class="popup-label">Current Density</div><div class="popup-value">'+(l.sqft/l.lotSf).toFixed(2)+'</div></div>':'<div></div>'}
 
         <div class="popup-divider"></div>
-        <div class="popup-section-label">DEVELOPMENT PRO FORMA — ${pf.maxUnits} Townhomes • ${pf.guaranteedFAR}x FAR (${pf.buildableSf.toLocaleString()} sf) • Exit $${omExitPsf}/sf ${l.newconPpsf?'<span style="color:var(--accent)">(new-con)</span>':'<span style="color:var(--text-dim)">(all sales)</span>'}</div>
+        <div class="popup-section-label">DEVELOPMENT PRO FORMA — ${pf.maxUnits} Townhomes • ${pf.effective_buildable_sf.toLocaleString()} SF • Exit $${omExitPsf}/sf ${l.newconPpsf?'<span style="color:var(--accent)">(new-con)</span>':'<span style="color:var(--text-dim)">(all sales)</span>'}</div>
       </div>
 
       <div class="popup-grid-2">
@@ -2167,31 +2184,29 @@ function buildOffMarketLayer(){
         <div><div class="popup-label">Effective Buildable SF</div><div class="popup-value">${pf.effective_buildable_sf.toLocaleString()} sf</div></div>
 
         <div class="popup-divider"></div>
-        <div class="popup-section-label" style="color:var(--green)">Target Buy Price (30% Margin)</div>
-
-        <div><div class="popup-label">Target Buy</div><div class="popup-value" style="color:var(--green)">$${pf.target_buy_price.toLocaleString()}</div></div>
-        <div><div class="popup-label">Est. Market Value</div><div class="popup-value">${est_market_value > 0 ? '$'+Math.round(est_market_value).toLocaleString() : '—'}</div></div>
-
-        <div><div class="popup-label">Headroom</div><div class="popup-value" style="color:${est_market_value > 0 ? (pf.target_buy_price - est_market_value >= 0 ? 'var(--green)' : (pf.target_buy_price - est_market_value) / est_market_value >= -0.15 ? 'var(--yellow)' : 'var(--red)') : 'var(--text-dim)'}">${est_market_value > 0 ? ((pf.target_buy_price - est_market_value >= 0 ? '+' : '') + '$' + Math.round(pf.target_buy_price - est_market_value).toLocaleString() + ' (' + ((pf.target_buy_price - est_market_value) / est_market_value * 100).toFixed(1) + '%)') : 'N/A — no market value estimate'}</div></div>
-        <div></div>
+        <div class="popup-span-2" style="font-size:11px;font-weight:600;color:${pf.max_offer>=est_offer?'var(--green)':'var(--red)'}">Max Offer @ 30% Margin: $${pf.max_offer.toLocaleString()}</div>
+        <div class="popup-span-2" style="font-size:10px;padding:3px 8px;border-radius:4px;background:${pf.max_offer>=est_offer?'rgba(34,197,94,0.1)':'rgba(239,68,68,0.1)'};color:${pf.max_offer>=est_offer?'var(--green)':'var(--red)'}">${pf.max_offer>=est_offer?'&#9989; Est. offer is $'+Math.round((pf.max_offer-est_offer)/1000).toLocaleString()+'k below max offer':'&#10060; Est. offer is $'+Math.round((est_offer-pf.max_offer)/1000).toLocaleString()+'k above max offer'}</div>
 
         <div class="popup-divider"></div>
         <div class="popup-section-label">Economics (at Est. Offer $${Math.round(est_offer).toLocaleString()})</div>
 
         <div><div class="popup-label">Build $/SF${pf.adjBuildCostPerSf>proforma.allInBuildPsf?' <span style="color:var(--orange)">(slope adj)</span>':''}</div><div class="popup-value"${pf.adjBuildCostPerSf>proforma.allInBuildPsf?' style="color:var(--orange)"':''}>$${pf.adjBuildCostPerSf}/sf</div></div>
-        <div><div class="popup-label">Carry (${proforma.holdMonths}mo)</div><div class="popup-value">$${pf.totalCarry.toLocaleString()}</div></div>
+        <div><div class="popup-label">Construction</div><div class="popup-value">$${Math.round(pf.constructionCost).toLocaleString()}</div></div>
+        ${pf.demo>0?'<div><div class="popup-label">Demo</div><div class="popup-value">$'+pf.demo.toLocaleString()+'</div></div><div></div>':''}
+        <div><div class="popup-label">Insurance</div><div class="popup-value">$${pf.insurance.toLocaleString()}</div></div>
+        <div><div class="popup-label">Loan Origination (${proforma.originationPct}%)</div><div class="popup-value">$${pf.originationFee.toLocaleString()}</div></div>
+        <div><div class="popup-label">Carry Interest (${proforma.holdMonths}mo)</div><div class="popup-value">$${pf.carryInterest.toLocaleString()}</div></div>
+        <div><div class="popup-label">Property Tax (${proforma.holdMonths}mo)</div><div class="popup-value">$${pf.carryPropTax.toLocaleString()}</div></div>
 
-        <div><div class="popup-label">Construction / Unit</div><div class="popup-value">$${Math.round(pf.totalBuildCost/pf.maxUnits).toLocaleString()}</div></div>
+        <div class="popup-divider"></div>
         <div><div class="popup-label">Net Revenue</div><div class="popup-value">$${Math.round(pf.netRevenue).toLocaleString()}</div></div>
-
-        <div><div class="popup-label">Sell / Unit</div><div class="popup-value" style="color:var(--green)">$${Math.round(pf.netRevenue/pf.maxUnits).toLocaleString()}</div></div>
         <div><div class="popup-label">Est Profit</div><div class="popup-value ${pf.profit>=0?'popup-profit-positive':'popup-profit-negative'}">$${Math.round(pf.profit).toLocaleString()}</div></div>
 
+        <div><div class="popup-label">Sell / Unit</div><div class="popup-value" style="color:var(--green)">$${Math.round(pf.netRevenue/pf.maxUnits).toLocaleString()}</div></div>
         <div><div class="popup-label">Profit / Unit</div><div class="popup-value ${pf.profit>=0?'popup-profit-positive':'popup-profit-negative'}">$${Math.round(pf.profit/pf.maxUnits).toLocaleString()}</div></div>
-        <div><div class="popup-label">Return on Cost</div><div class="popup-value ${pf.return_on_cost>=0?'popup-profit-positive':'popup-profit-negative'}">${pf.return_on_cost.toFixed(1)}%</div></div>
 
-        <div><div class="popup-label">Margin on Revenue</div><div class="popup-value ${pf.margin>=0?'popup-profit-positive':'popup-profit-negative'}">${pf.margin.toFixed(1)}%</div></div>
-        <div></div>
+        <div><div class="popup-label">Return on Cost</div><div class="popup-value ${pf.return_on_cost>=0?'popup-profit-positive':'popup-profit-negative'}">${pf.return_on_cost.toFixed(1)}%</div></div>
+        <div><div class="popup-label">Net Margin on Sale</div><div class="popup-value ${pf.margin>=0?'popup-profit-positive':'popup-profit-negative'}">${pf.margin.toFixed(1)}%<br><small style="color:var(--text-dim);font-weight:400">(Revenue−Cost)/Revenue</small></div></div>
 
         <div class="popup-divider"></div>
         <div class="popup-section-label">ZIMAS Due Diligence</div>
@@ -2364,8 +2379,13 @@ function updateHeroStats(){
     const gross_revenue_h = exit_psf * effective_buildable_sf;
     const net_revenue = gross_revenue_h * (1 - proforma.txnCostPct / 100) - proforma.fixedDispositionCosts;
     const demo = l.sqft > 0 ? proforma.demoCost : 0;
-    const total_build = adjBuildCostPerSf * effective_buildable_sf + demo;
-    const total_cost = est_offer + total_build;
+    const total_build = adjBuildCostPerSf * maxUnits * proforma.avgUnitSf + demo;
+    const h_carry_interest = (total_build * 0.5) * (proforma.carryRatePct / 100) * (proforma.holdMonths / 12);
+    const h_carry_prop_tax = est_offer * 0.011 * (proforma.holdMonths / 12);
+    const h_insurance = proforma.insurance || 40000;
+    const h_origination = total_build * ((proforma.originationPct || 1) / 100);
+    const total_carry = h_carry_interest + h_carry_prop_tax + h_insurance + h_origination;
+    const total_cost = est_offer + total_build + total_carry;
     const est_profit = net_revenue - total_cost;
     const margin_at_offer = net_revenue > 0 ? (est_profit / net_revenue) : 0;
     const land_basis_psf = effective_buildable_sf > 0 ? (est_offer / effective_buildable_sf) : 0;
@@ -2764,6 +2784,8 @@ function onProformaChange(){
   proforma.demoCost = parseInt(document.getElementById('pfDemoCost').value)||55000;
   proforma.holdMonths = parseInt(document.getElementById('pfHoldMonths').value)||24;
   proforma.carryRatePct = parseFloat(document.getElementById('pfCarryRate').value)||9;
+  proforma.insurance = parseInt(document.getElementById('pfInsurance').value)||40000;
+  proforma.originationPct = parseFloat(document.getElementById('pfOrigination').value)||1;
   enrichListings();
   // Rebuild spread heatmap since it depends on build cost
   if(spreadHeatLayer) {
