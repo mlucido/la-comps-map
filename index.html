@@ -10,13 +10,26 @@
 <script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js" onerror="console.warn('esri-leaflet failed to load')"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
+// Market config — select via ?market=sd URL param (default: la)
+var _urlMarket = new URLSearchParams(window.location.search).get('market') || 'la';
+var MARKET_CONFIG = {
+  la: { name:'Los Angeles', slug:'la', center:[34.05,-118.35], zoom:11,
+        dataFile:'data.js', listingsFile:'listings.js',
+        burnZones:true, subtitle:'Townhome development sites in Los Angeles' },
+  sd: { name:'San Diego', slug:'sd', center:[32.77,-117.15], zoom:10,
+        dataFile:'sd_data.js', listingsFile:'sd_listings.js',
+        burnZones:false, subtitle:'Townhome development sites in San Diego' }
+};
+var MARKET = MARKET_CONFIG[_urlMarket] || MARKET_CONFIG.la;
+document.title = 'SB 1123 Deal Finder — ' + MARKET.name;
+
 // Mobile: skip 25MB comps file, load only listings (already has pre-computed $/SF)
 // Desktop: load both
 var _isMob = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 if(!_isMob){
-  document.write('<script src="data.js?v=4"><\/script>');
+  document.write('<script src="'+MARKET.dataFile+'?v=5"><\/script>');
 }
-document.write('<script src="listings.js?v=4"><\/script>');
+document.write('<script src="'+MARKET.listingsFile+'?v=5"><\/script>');
 window.LOADED_COMPS = window.LOADED_COMPS || [];
 window.LOADED_LISTINGS = window.LOADED_LISTINGS || [];
 </script>
@@ -670,10 +683,11 @@ window.LOADED_LISTINGS = window.LOADED_LISTINGS || [];
   <div class="sidebar-header">
     <div style="display:flex;align-items:center;justify-content:space-between">
       <h1><span>SB 1123</span> Deal Finder</h1>
-      <a href="analytics.html" class="analytics-btn" title="Market Analytics Dashboard">&#9632; Analytics</a>
+      <a href="analytics.html" class="analytics-btn" id="analyticsLink" title="Market Analytics Dashboard">&#9632; Analytics</a>
+      <a href="" class="analytics-btn" id="marketSwitchLink" title="Switch market"></a>
       <button class="refresh-btn" onclick="copyRefreshCmd()" title="Copy refresh command to clipboard">&#8635; Refresh</button>
     </div>
-    <p>Townhome development sites in Los Angeles</p>
+    <p id="marketSubtitle">Townhome development sites in Los Angeles</p>
     <div class="law-ref">California SB 1123 — by-right subdivision, no city approval required</div>
     <div class="law-ref" id="dataFreshness" style="margin-top:2px"></div>
   </div>
@@ -876,7 +890,7 @@ window.LOADED_LISTINGS = window.LOADED_LISTINGS || [];
   </div>
 
   <!-- Burn Zone Toggle -->
-  <div class="section" style="padding:6px 14px">
+  <div class="section" style="padding:6px 14px" id="burnZoneSection">
     <label class="zone-toggle" style="margin:0">
       <input type="checkbox" id="hideBurnZones" onchange="toggleBurnZoneFilter(this.checked)">
       <span class="check-box"></span>
@@ -1153,7 +1167,7 @@ function updateFavCount(){
   }
 }
 function copyRefreshCmd(){
-  const cmd='./refresh.sh';
+  const cmd=MARKET.slug==='la'?'./refresh.sh':'./refresh.sh --market '+MARKET.slug;
   navigator.clipboard.writeText(cmd).then(()=>{
     const btn=document.querySelector('.refresh-btn');
     btn.textContent='Copied!';
@@ -1164,7 +1178,8 @@ function copyRefreshCmd(){
   });
 }
 function sharePin(lat,lng,event){
-  const url=window.location.origin+window.location.pathname+'?pin='+lat+','+lng;
+  var params=MARKET.slug!=='la'?'?market='+MARKET.slug+'&pin='+lat+','+lng:'?pin='+lat+','+lng;
+  const url=window.location.origin+window.location.pathname+params;
   navigator.clipboard.writeText(url).then(()=>{
     const btn=event.target;
     const orig=btn.innerHTML;
@@ -1206,7 +1221,7 @@ let proforma = {
 };
 
 // ── Map ──
-const map = L.map('map',{center:[34.05,-118.35],zoom:11,zoomControl:false});
+const map = L.map('map',{center:MARKET.center,zoom:MARKET.zoom,zoomControl:false});
 L.control.zoom({position:'topright'}).addTo(map);
 
 // Custom panes so heatmap renders below listings
@@ -2912,6 +2927,18 @@ function exportCSV(){
 // ══════════════════════════════════════════
 
 window.addEventListener('DOMContentLoaded', function(){
+  // Market-specific UI setup
+  document.getElementById('marketSubtitle').textContent = MARKET.subtitle;
+  if(!MARKET.burnZones) document.getElementById('burnZoneSection').style.display='none';
+  var otherSlug = MARKET.slug==='la'?'sd':'la';
+  var otherCfg = MARKET_CONFIG[otherSlug];
+  var switchLink = document.getElementById('marketSwitchLink');
+  switchLink.href = '?market='+otherSlug;
+  switchLink.textContent = otherCfg.name.split(' ').map(function(w){return w[0]}).join('')+' \u2197';
+  switchLink.title = 'Switch to '+otherCfg.name;
+  var analyticsLink = document.getElementById('analyticsLink');
+  if(MARKET.slug!=='la') analyticsLink.href='analytics.html?market='+MARKET.slug;
+
   if(typeof LOADED_COMPS !== 'undefined' && LOADED_COMPS.length > 0) COMPS = LOADED_COMPS;
   if(typeof LOADED_LISTINGS !== 'undefined' && LOADED_LISTINGS.length > 0) LISTINGS = LOADED_LISTINGS;
 
