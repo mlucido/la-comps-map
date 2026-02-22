@@ -1567,8 +1567,8 @@ function calculateBTRProForma(l){
   const cashFlow = annualNOI - annualDebtService;
   const cashOnCash = equityAfterRefi > 0 ? cashFlow / equityAfterRefi : 0;
 
-  // Does it pencil?
-  const btrPencils = yieldOnCost >= minYOC && dscr >= 1.25 && baseRent > 0;
+  // Does it pencil? (DSCR shown as informational, not a gate — it's a constant of cap/LTV/rate)
+  const btrPencils = yieldOnCost >= minYOC && baseRent > 0;
 
   return {
     ...pf,  // inherit all BTS fields
@@ -2514,13 +2514,13 @@ function updateHeroStats(){
     if(el) el.style.display = showBtr ? '' : 'none';
   });
   if(showBtr){
-    const btrDeals = LISTINGS.filter(l => {
-      if(!l.sb1123Eligible || !l.fmr3br || l.fmr3br <= 0) return false;
+    const btrEligible = LISTINGS.filter(l => l.sb1123Eligible && l.fmr3br && l.fmr3br > 0);
+    const btrDeals = btrEligible.filter(l => {
       const btrPF = calculateBTRProForma(l);
       const btsMargin = l.estMargin || 0;
       return btsMargin < 20 && btrPF.btrPencils;
     });
-    const btrYocs = btrDeals.map(l => calculateBTRProForma(l).yieldOnCost);
+    const btrYocs = btrEligible.map(l => calculateBTRProForma(l).yieldOnCost).filter(y => y > 0);
     const avgYoc = btrYocs.length ? (btrYocs.reduce((a,b)=>a+b,0)/btrYocs.length*100).toFixed(1) : '0.0';
     const rents = LISTINGS.filter(l=>l.estRentMonth).map(l=>l.estRentMonth).sort((a,b)=>a-b);
     const medRent = rents.length ? rents[Math.floor(rents.length/2)] : 0;
